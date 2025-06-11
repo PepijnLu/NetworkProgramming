@@ -4,6 +4,7 @@ using Unity.Networking.Transport;
 using UnityEngine;
 using UnityEngine.Networking;
 using Newtonsoft.Json;
+using System.Threading.Tasks;
 
 
 public class ServerBehaviour : MonoBehaviour
@@ -23,8 +24,6 @@ public class ServerBehaviour : MonoBehaviour
             return;
         }
         networkDriver.Listen();
-
-        StartCoroutine(GetRequest());
     }
 
     // Update is called once per frame
@@ -71,40 +70,12 @@ public class ServerBehaviour : MonoBehaviour
         }
     }
 
-    void OnDestroy()
+    public void DelayedOnDestroy()
     {
         if(networkDriver.IsCreated)
         {
             networkDriver.Dispose();
             connections.Dispose();
-        }
-    }
-
-    IEnumerator GetRequest()
-    {
-        using(UnityWebRequest _www = UnityWebRequest.Get("https://studenthome.hku.nl/~pepijn.luchtmeijer"))
-        {
-            yield return _www.SendWebRequest();
-            if(_www.result == UnityWebRequest.Result.Success)
-            {
-                ProcessData(_www.downloadHandler.text);
-            }
-            else
-            {
-                Debug.LogError($"Error: {_www.error}");
-            }
-        }
-
-    }
-
-    void ProcessData(string _data)
-    {
-        Debug.Log($"Recieved: {_data}");
-        RootData processedData = JsonConvert.DeserializeObject<RootData>(_data);
-
-        foreach(ScoreEntry _se in processedData.Last5Scores)
-        {
-            Debug.Log($"Username: {_se.Username} - Score: {_se.Score} - Date: {_se.ScoredAt}");
         }
     }
 }

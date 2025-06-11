@@ -4,6 +4,7 @@ using Unity.Collections;
 
 public class ClientBehaviour : MonoBehaviour
 {
+    [SerializeField] ServerBehaviour serverBehaviour;
     NetworkDriver networkDriver;
     NetworkConnection connection;
     // Start is called once before the first execution of Update after the MonoBehaviour is created
@@ -50,8 +51,15 @@ public class ClientBehaviour : MonoBehaviour
         }
     }
 
-    void OnDestroy()
+    async void OnDestroy()
     {
-        networkDriver.Dispose();
+        await GetRequests.instance.GetRequest<LoginResponse>($"server_logout.php", false);
+
+        if(networkDriver.IsCreated)
+        {
+            networkDriver.Dispose();
+        }
+
+        if(serverBehaviour) serverBehaviour.DelayedOnDestroy();
     }
 }
