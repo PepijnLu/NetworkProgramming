@@ -46,13 +46,13 @@ public class TicTacToe : MonoBehaviour
     {
         if(!isPlayersTurn) return;
 
-        if(!filledSpaces.Contains(_position))
-        {
-            filledSpaces.Add(_position);
-            SetSpace(_position, isCrosses);
-            GetRequests.instance.InputAction(_position);
-            isPlayersTurn = false;
-        }
+        // if(!filledSpaces.Contains(_position))
+        // {
+        //     filledSpaces.Add(_position);
+        //     SetSpace(_position, isCrosses);
+        //     GetRequests.instance.InputAction(_position);
+        //     isPlayersTurn = false;
+        // }
     }
 
     public void SetSpace(string _position, bool _isCrosses)

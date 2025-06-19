@@ -53,12 +53,7 @@ public class ServerBehaviour : MonoBehaviour
             {
                 if(_cmd == NetworkEvent.Type.Data)
                 {
-                    uint _number = _stream.ReadUInt();
-                    Debug.Log($"Got {_number} from a client, adding 2 to it");
-                    _number += 2;
-                    networkDriver.BeginSend(NetworkPipeline.Null, connections[i], out DataStreamWriter _writer);
-                    _writer.WriteUInt(_number);
-                    networkDriver.EndSend(_writer);
+                    ReadDataFromClient(_stream, i);
                 }
                 else if(_cmd == NetworkEvent.Type.Disconnect)
                 {
@@ -70,8 +65,84 @@ public class ServerBehaviour : MonoBehaviour
         }
     }
 
-    public void DelayedOnDestroy()
+    public void SendDataToClient(int _connectionIndex, string _task, int success, uint[] _intData = null, string[] _stringData = null)
     {
+        int dataType = 0;
+        if(_intData != null) dataType = 1; 
+        else if(_stringData != null) dataType = 2;
+        else Debug.LogWarning($"No Datatype found for: {_task}");
+
+        networkDriver.BeginSend(NetworkPipeline.Null, connections[_connectionIndex], out DataStreamWriter _writer);
+
+        //Message Type ID
+        _writer.WriteUInt((uint)dataType);
+        //Behaviour
+        _writer.WriteFixedString32(_task);
+        //Success
+        _writer.WriteUInt((uint)success);
+        //Connection Index
+
+        //Data
+        //Int
+        if(dataType == 1)
+        {
+            //Number of Fields
+            _writer.WriteUInt((uint)_intData.Length);
+            foreach(uint _uint in _intData)
+            {
+                _writer.WriteUInt(_uint);
+            }
+        }
+
+        //String
+        else if(dataType == 2)
+        {
+            //Number of Fields
+            _writer.WriteUInt((uint)_stringData.Length);
+            //Data
+            foreach(string _str in _stringData)
+            {
+                _writer.WriteFixedString32(_str);
+            }
+        }
+
+        networkDriver.EndSend(_writer);
+    }
+
+    void ReadDataFromClient(DataStreamReader _stream, int index)
+    {
+        uint dataType = _stream.ReadUInt();
+        uint numberOfFields = _stream.ReadUInt();
+        string behaviour = _stream.ReadFixedString32().ToString();
+
+        //Int
+        if(dataType == 1)
+        {
+            uint[] data = new uint[numberOfFields];
+
+            for (int i = 0; i < numberOfFields; i++)
+            {
+                data[i] = _stream.ReadUInt();
+            }
+            GetRequests.instance.RunTask(index, behaviour, _intData: data);
+        }
+
+        //String
+        if(dataType == 2)
+        {
+            string[] data = new string[numberOfFields];
+
+            for (int i = 0; i < numberOfFields; i++)
+            {
+                data[i] = _stream.ReadFixedString32().ToString();
+            }
+            GetRequests.instance.RunTask(index, behaviour, _stringData: data);
+        }
+    }
+    async void OnDestroy()
+    {
+        await GetRequests.instance.GetRequest<LoginResponse>($"server_logout.php", false);
+
         if(networkDriver.IsCreated)
         {
             networkDriver.Dispose();

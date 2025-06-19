@@ -4,10 +4,12 @@ using Newtonsoft.Json;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using TMPro;
+using System;
 
 public class GetRequests : MonoBehaviour
 {
     public static GetRequests instance;
+    [SerializeField] ServerBehaviour serverBehaviour;
     TextMeshProUGUI roundText;
     [Header("InitialLogin")]
     [SerializeField] int serverID;
@@ -15,9 +17,17 @@ public class GetRequests : MonoBehaviour
     [SerializeField] string baseUrl;
     [Header("TicTacToe Options")]
     [SerializeField] List<string> ticTacToeOptions;
+    Dictionary<string, Func<(int _connectionIndex, uint[], string[]), Task>> getRequests;    
     void Awake()
     {
         instance = this;   
+        InstantiateDictionary();
+    }
+
+    public async void RunTask(int _connectionIndex, string _task, uint[] _intData = null, string[] _stringData = null)
+    {
+        if(getRequests.ContainsKey(_task)) await getRequests[_task]( (_connectionIndex, _intData, _stringData) );
+        else Debug.LogWarning($"Task {_task} does not exist.");
     }
     async void Start()
     {
@@ -26,35 +36,13 @@ public class GetRequests : MonoBehaviour
 
         //Start server session
         LoginResponse response = await GetRequest<LoginResponse>($"server_login.php?Server_ID={serverID}&Server_pass={MD5Helper.EncryptToMD5(password)}&delOld=true");
-        if (!response.success) Debug.LogError($"Login failed: {response.message}");
+        if (!response.success) Debug.LogError($"Server Login failed: {response.message}");
 
         Debug.Log($"Server login successful! Session ID: {response.sessionId}");
-        //Connected to server session, enable register and login buttons
-        UIManager.instance.ToggleUIElement("Login/Register", true);
-        roundText = UIManager.instance.GetTextElementFromDict("RoundText");
-
-    }
-
-    public async void LoginUser(string _username, string _password)
-    {
-        //Login
-        LoginResponse response = await GetRequest<LoginResponse>($"user_login.php?User={_username}&pass={MD5Helper.EncryptToMD5(_password)}");
-        if (!response.success) { Debug.LogError($"Login failed: {response.message}"); return; }
-
-        Debug.Log($"User login successful!");
-
-        //Get user info
-        UserInfo userInfo = await GetRequest<UserInfo>("user_info.php");
-        //Debug.Log($"Username: {userInfo.Username} - Email: {userInfo.Email} - Country: {userInfo.Country} - DateOfBirth: {userInfo.DateOfBirth}");
-
-        //Disable buttons and show user info
-        UIManager.instance.ToggleUIElement("LoginScreen", false);
-        UIManager.instance.ToggleUIElement("UserInfo", true);
-        UIManager.instance.DisplayUserInfo(userInfo.Username, userInfo.Email, userInfo.Country, userInfo.DateOfBirth);
     }
 
     //Add date of birth support, password might not be getting added properly
-    public async void RegisterUser(string _username, string _password, string _email, string _country, string _dateOfBirth = "")
+    public async Task RegisterUser(string _username, string _password, string _email, string _country, string _dateOfBirth = "")
     {
         //Login
         LoginResponse response = await GetRequest<LoginResponse>($"register_user.php?User={_username}&Email={_email}&Pass={MD5Helper.EncryptToMD5(_password)}&Country={_country}");
@@ -91,7 +79,7 @@ public class GetRequests : MonoBehaviour
             //roundText.text = "Awaiting setup completion";
             //Debug.Log($"Awaiting setup completion: {setupComplete.value}");
             cardInfo = await GetRequest<PokerMatchCardInfo>($"find_match.php?behaviour=3");
-            await Task.Delay(500); // Wait .5 second
+            await Task.Delay(1000); // Wait 1 second
         }
         Debug.Log($"Started Match");
 
@@ -152,13 +140,13 @@ public class GetRequests : MonoBehaviour
         TicTacToe.instance.isPlayersTurn = true;
     }
 
-    public async void InputAction(string _position)
-    {
-        SingleString inputAction = await GetRequest<SingleString>($"play_tictactoe.php?behaviour=3&Option={_position}");
-        if(!ticTacToeOptions.Contains(inputAction.result)) {Debug.LogError("Couldnt set position"); return;}
-        TicTacToe.instance.isPlayersTurn = false;
-        _ = AwaitMatchInput();
-    }
+    // public async Task InputAction(string _position)
+    // {
+    //     SingleString inputAction = await GetRequest<SingleString>($"play_tictactoe.php?behaviour=3&Option={_position}");
+    //     if(!ticTacToeOptions.Contains(inputAction.result)) {Debug.LogError("Couldnt set position"); return;}
+    //     TicTacToe.instance.isPlayersTurn = false;
+    //     _ = AwaitMatchInput();
+    // }
 
     public async Task<T> GetRequest<T>(string _request, bool returnData = true)
     {
@@ -191,5 +179,56 @@ public class GetRequests : MonoBehaviour
         Debug.Log($"Received: {_data}");
         T processedData = JsonConvert.DeserializeObject<T>(_data);
         return processedData;
+    }
+
+    void InstantiateDictionary()
+    {
+        getRequests = new();
+        getRequests["debugInt"] = async (args) =>
+        {
+            uint[] intData = args.Item2;
+            foreach(uint _uint in intData)
+            {
+                Debug.Log($"Received int: {_uint}");
+            }
+        };
+
+        getRequests["debugString"] = async (args) =>
+        {
+            string[] stringData = args.Item3;
+            foreach(string _string in stringData)
+            {
+                Debug.Log($"Received string: {_string}");
+            }
+        };
+
+        getRequests["loginUser"] = async (args) =>
+        {
+            string _username = args.Item3[0];
+            string _password = args.Item3[1];
+
+            //Login
+            LoginResponse response = await GetRequest<LoginResponse>($"user_login.php?User={_username}&pass={MD5Helper.EncryptToMD5(_password)}");
+            if (!response.success) 
+            { 
+                Debug.Log($"Login failed: {response.message}"); 
+                string[] errorMessage = new string[1]{response.message};
+                serverBehaviour.SendDataToClient(args.Item1, "loginUser", 0, _stringData: errorMessage);
+                return; 
+            }
+
+            Debug.Log($"User login successful!");
+
+            //Get user info
+            UserInfo userInfo = await GetRequest<UserInfo>("user_info.php");
+            string[] userInfoArray = new string[4]{userInfo.Username, userInfo.Email, userInfo.Country, userInfo.DateOfBirth};
+            serverBehaviour.SendDataToClient(args.Item1, "loginUser", 1, _stringData: userInfoArray);
+            //Debug.Log($"Username: {userInfo.Username} - Email: {userInfo.Email} - Country: {userInfo.Country} - DateOfBirth: {userInfo.DateOfBirth}");
+
+            //Disable buttons and show user info
+            // UIManager.instance.ToggleUIElement("LoginScreen", false);
+            // UIManager.instance.ToggleUIElement("UserInfo", true);
+            // UIManager.instance.DisplayUserInfo(userInfo.Username, userInfo.Email, userInfo.Country, userInfo.DateOfBirth);
+        };
     }
 }

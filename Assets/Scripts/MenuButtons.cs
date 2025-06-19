@@ -20,7 +20,9 @@ public class MenuButtons : MonoBehaviour
         TMP_InputField usernameInput = _inputs.GetChild(0).GetComponent<TMP_InputField>();
         TMP_InputField passwordInput = _inputs.GetChild(1).GetComponent<TMP_InputField>();
 
-        GetRequests.instance.LoginUser(usernameInput.text, passwordInput.text);
+        string[] usernameAndPass = new string[2]{usernameInput.text, passwordInput.text};
+
+        ClientBehaviour.instance.SendString(usernameAndPass, "loginUser");
     }
 
     public void Register(Transform _inputs)
