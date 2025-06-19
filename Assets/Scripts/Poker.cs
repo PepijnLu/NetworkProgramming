@@ -1,6 +1,13 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+public class PokerPlayer
+{
+    public int userID;
+    public int connectionID;
+    public int handCard1;
+    public int handCard2;
+}
 public class Poker : MonoBehaviour
 {
     public static Poker instance;
@@ -20,6 +27,26 @@ public class Poker : MonoBehaviour
     void Update()
     {
         
+    }
+
+    public List<PokerCard> GetShuffledCards(int _playerCount)
+    {
+        List<PokerCard> deck = new();
+
+        foreach(PokerCard pokerCard in pokerCards)
+        {
+            deck.Add(pokerCard);
+        }
+
+        for (int i = deck.Count - 1; i > 0; i--)
+        {
+            int j = UnityEngine.Random.Range(0, i + 1);
+            (deck[i], deck[j]) = (deck[j], deck[i]); // swap
+        }
+        int cardsToKeep = 5 + (_playerCount * 2);
+        deck.RemoveRange(cardsToKeep, deck.Count - cardsToKeep);
+
+        return deck;
     }
 
     public void GenerateHand(int card1ID, int card2ID)   

@@ -44,6 +44,7 @@ public class LoginResponse
 
 public class UserInfo
 {
+    public int userID;
     public string Username;
     public string Email;
     public string Country;
@@ -73,6 +74,8 @@ public class PokerMatchPlayerInfo
 public class SingleInt
 {
     public int value = 0;
+    public int value2 = 0;
+    public int value3 = 0;
 }
 
 public class SingleString

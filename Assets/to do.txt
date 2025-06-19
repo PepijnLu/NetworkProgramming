@@ -1,0 +1,9 @@
+-make shit look nice - 30m
+-finish setup (blinds and turn order) - 30m
+-add gameplay loop - 1h
+-cleanup and leaving - 30m
+-high score to database (in a single session) - 10m
+-current chip amount in database - 5m
+-every 24h 1000 free chips - 15m
+-fix dob/register - 15m
+-put it on a dedicated server - 30m

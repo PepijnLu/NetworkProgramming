@@ -43,7 +43,9 @@ public class MenuButtons : MonoBehaviour
 
     public void FindMatch()
     {
-        _ = GetRequests.instance.FindMatch();
+        //_ = GetRequests.instance.FindMatch();
+
+        ClientBehaviour.instance.SendInt(new uint[1]{(uint)ClientBehaviour.instance.GetUserInfo().userID}, "findMatch");
     }
 
     public void TicTacToeInput(GameObject _button)

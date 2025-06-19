@@ -23,6 +23,11 @@ public class ClientBehaviour : MonoBehaviour
         connection = networkDriver.Connect(endpoint);
     }
 
+    public UserInfo GetUserInfo()
+    {
+        return clientDataProcess.userInfo;
+    }
+
     // Update is called once per frame
     void Update()
     {
