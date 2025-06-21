@@ -7,18 +7,29 @@ public class PokerPlayer
     public int connectionID;
     public int handCard1;
     public int handCard2;
+    public int betAmount;
+    public int orderInTurn;
 }
-public class Poker : MonoBehaviour
+
+public class PokerMatch
+{
+    public List<PokerPlayer> playersInMatch = new();
+    public List<PokerCard> matchDeck = new();
+    public int currentTurnUserID;
+}
+public   class Poker : MonoBehaviour
 {
     public static Poker instance;
     [SerializeField] List<PokerCard> pokerCards;
+    //UserID, turnOrder
+    public Dictionary<uint, PokerPlayer> playersByUserID = new();
     Dictionary<int, PokerCard> pokerCardsDict = new();
     [SerializeField] Transform deckTransform1, deckTransform2, deckTransform3, deckTransform4, deckTransform5, pokerHand1Transform, pokerHand2Transform;
     void Awake()
     {
         instance = this;
 
-        foreach(PokerCard _pokerCard in pokerCards)
+        foreach (PokerCard _pokerCard in pokerCards)
         {
             pokerCardsDict.Add(_pokerCard.cardID, _pokerCard);
         }
@@ -26,14 +37,14 @@ public class Poker : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        
+
     }
 
     public List<PokerCard> GetShuffledCards(int _playerCount)
     {
         List<PokerCard> deck = new();
 
-        foreach(PokerCard pokerCard in pokerCards)
+        foreach (PokerCard pokerCard in pokerCards)
         {
             deck.Add(pokerCard);
         }
@@ -49,7 +60,7 @@ public class Poker : MonoBehaviour
         return deck;
     }
 
-    public void GenerateHand(int card1ID, int card2ID)   
+    public void GenerateHand(int card1ID, int card2ID)
     {
         PokerCard newCard1 = Instantiate(pokerCardsDict[card1ID], pokerHand1Transform);
         PokerCard newCard2 = Instantiate(pokerCardsDict[card2ID], pokerHand2Transform);

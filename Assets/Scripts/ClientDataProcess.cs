@@ -20,7 +20,7 @@ public class ClientDataProcess : MonoBehaviour
     {
         dataProcessing["loginUser"] = (success, intData, stringData) =>
         {
-            if(success == 1)
+            if (success == 1)
             {
                 //Login success
                 userInfo = new()
@@ -45,7 +45,7 @@ public class ClientDataProcess : MonoBehaviour
 
         dataProcessing["findMatch"] = (success, intData, stringData) =>
         {
-            if(success == 1)
+            if (success == 1)
             {
                 //Match found
                 //Setup match
@@ -55,31 +55,20 @@ public class ClientDataProcess : MonoBehaviour
 
         };
 
-        // dataProcessing["cardInfo"] = (success, intData, stringData) =>
+        // dataProcessing["playerInfo"] = (success, intData, stringData) =>
         // {
-        //     if(success == 1)
+        //     if (success == 1)
         //     {
-        //         //Show cards in hand
+        //         //Show chips/bet
         //         UIManager.instance.ToggleUIElement("PokerScreen", true);
-        //         Poker.instance.GenerateHand((int)intData[0], (int)intData[1]);
+        //         UIManager.instance.GetTextElementFromDict("Chips").text = "Chips: " + intData[2];
+        //         UIManager.instance.GetTextElementFromDict("Bet").text = "Bet: " + intData[1];
         //     }
-
         // };
-
-        dataProcessing["playerInfo"] = (success, intData, stringData) =>
-        {
-            if(success == 1)
-            {
-                //Show chips/bet
-                UIManager.instance.ToggleUIElement("PokerScreen", true);
-                UIManager.instance.GetTextElementFromDict("Chips").text = "Chips: " + intData[2];
-                UIManager.instance.GetTextElementFromDict("Bet").text = "Bet: " + intData[1];
-            }
-        };
 
         dataProcessing["getCard"] = (success, intData, stringData) =>
         {
-            if(success == 1)
+            if (success == 1)
             {
                 //Show cards in hand
                 UIManager.instance.ToggleUIElement("PokerScreen", true);
@@ -88,6 +77,44 @@ public class ClientDataProcess : MonoBehaviour
 
         };
 
-        
+        //First int is order in turn, second int is userID
+        dataProcessing["setTurnOrder"] = (success, intData, stringData) =>
+        {
+            if (success == 1)
+            {
+                //Set turn order locally
+                PokerPlayer newPlayer = new()
+                {
+                    orderInTurn = (int)intData[0],
+                    userID = (int)intData[1]
+                };
+                Poker.instance.playersByUserID.Add(intData[1], newPlayer);
+
+                //Do UI shit
+            }
+
+        };
+        //First int is userID, second int is betAmount
+        dataProcessing["setBlind"] = (success, intData, stringData) =>
+        {
+            if (success == 1)
+            {
+                //Set bet amount locally
+                Poker.instance.playersByUserID[intData[0]].betAmount = (int)intData[1];
+
+                //Do UI shit
+            }
+        };
+        //userID of new turn player
+        dataProcessing["startPlayerTurn"] = (success, intData, stringData) =>
+        {
+            if (success == 1)
+            {
+                //Check if its you
+                
+                //Do UI shit
+            }
+        };
+
     }
 }

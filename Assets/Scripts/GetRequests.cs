@@ -13,8 +13,7 @@ public class GetRequests : MonoBehaviour
     TextMeshProUGUI roundText;
     Dictionary<int, UserInfo> connectedUsers = new();
     List<uint> setupMatches = new();
-    private Dictionary<uint, List<PokerPlayer>> playersInMatches = new();
-    private Dictionary<uint, List<PokerCard>> matchDecks = new();
+    private Dictionary<uint, PokerMatch> pokerMatches = new();
 
     [Header("InitialLogin")]
     [SerializeField] int serverID;
@@ -57,93 +56,43 @@ public class GetRequests : MonoBehaviour
 
     }
 
-    public async Task FindMatch()
-    {
-        //Login
-        // SingleInt matchmaking = await GetRequest<SingleInt>($"find_match.php?behaviour=1");
-        // if (matchmaking.value == 0) { Debug.LogError($"Couldnt connect"); return; }
+    // public async Task AwaitMatchInput()
+    // {
+    //     //Wait until its your players turn
+    //     if((!TicTacToe.instance.isCrosses && TicTacToe.instance.firstRound) || (!TicTacToe.instance.firstRound))
+    //     {
+    //         SingleInt isPlayersTurn = new();
+    //         while (isPlayersTurn.value == 0)
+    //         {
+    //             Debug.Log("Await opponents input");
+    //             roundText.text = "Await opponents input";
+    //             isPlayersTurn = await GetRequest<SingleInt>($"play_tictactoe.php?behaviour=1");
+    //             await Task.Delay(500); // Wait .5 second
+    //         }
 
-        Debug.Log($"Now matchmaking!");
-        SingleInt matchFound = new();
-        while (matchFound.value == 0)
-        {
-            matchFound = await GetRequest<SingleInt>($"find_match.php?behaviour=2");
-            await Task.Delay(1000); // Wait 1 second
-        }
+    //         //Process other players input
+    //         SingleString otherPlayersInput = new();
+    //         while (!ticTacToeOptions.Contains(otherPlayersInput.result))
+    //         {
+    //             otherPlayersInput = await GetRequest<SingleString>($"play_tictactoe.php?behaviour=2");
+    //             Debug.Log($"Processing opponents input: {otherPlayersInput.result}");
+    //             roundText.text = "Processing opponents input";
+    //             await Task.Delay(500); // Wait .5 second
+    //         }
 
-        Debug.Log($"Match Found! Match ID: {matchFound.value}");
-        //UIManager.instance.StartTicTacToe();
-        _ = SetupMatch();
-    }
+    //         //Process the input in game
+    //         Debug.Log("Opponents input processed");
+    //         roundText.text = "Opponents input processed";
+    //         TicTacToe.instance.ProcessOthersInput(otherPlayersInput.result);
+    //     }
 
-    public async Task SetupMatch()
-    {
-        PokerMatchCardInfo cardInfo = new();
-        while (cardInfo.handCard1 == 0)
-        {
-            //roundText.text = "Awaiting setup completion";
-            //Debug.Log($"Awaiting setup completion: {setupComplete.value}");
-            cardInfo = await GetRequest<PokerMatchCardInfo>($"find_match.php?behaviour=3");
-            await Task.Delay(1000); // Wait 1 second
-        }
-        Debug.Log($"Started Match");
+    //     if(TicTacToe.instance.firstRound) TicTacToe.instance.firstRound = false;
 
-        SingleInt blindSetup = new();
-        //Setup blinds
-        while (blindSetup.value == 0)
-        {
-            //roundText.text = "Awaiting setup completion";
-            //Debug.Log($"Awaiting setup completion: {setupComplete.value}");
-            blindSetup = await GetRequest<SingleInt>($"play_poker.php?behaviour=1");
-            await Task.Delay(500); // Wait .5 second
-        }
-
-        PokerMatchPlayerInfo playerInfo = await GetRequest<PokerMatchPlayerInfo>($"play_poker.php");
-
-        UIManager.instance.ToggleUIElement("UserInfo", false);
-        UIManager.instance.ToggleUIElement("PokerScreen", true);
-        UIManager.instance.GetTextElementFromDict("Chips").text = "Chips: " + playerInfo.remainingChips;
-        UIManager.instance.GetTextElementFromDict("Bet").text = "Bet: " + playerInfo.betAmount;
-        Poker.instance.GenerateHand(cardInfo.handCard1, cardInfo.handCard2);
-    }
-
-    public async Task AwaitMatchInput()
-    {
-        //Wait until its your players turn
-        if((!TicTacToe.instance.isCrosses && TicTacToe.instance.firstRound) || (!TicTacToe.instance.firstRound))
-        {
-            SingleInt isPlayersTurn = new();
-            while (isPlayersTurn.value == 0)
-            {
-                Debug.Log("Await opponents input");
-                roundText.text = "Await opponents input";
-                isPlayersTurn = await GetRequest<SingleInt>($"play_tictactoe.php?behaviour=1");
-                await Task.Delay(500); // Wait .5 second
-            }
-
-            //Process other players input
-            SingleString otherPlayersInput = new();
-            while (!ticTacToeOptions.Contains(otherPlayersInput.result))
-            {
-                otherPlayersInput = await GetRequest<SingleString>($"play_tictactoe.php?behaviour=2");
-                Debug.Log($"Processing opponents input: {otherPlayersInput.result}");
-                roundText.text = "Processing opponents input";
-                await Task.Delay(500); // Wait .5 second
-            }
-
-            //Process the input in game
-            Debug.Log("Opponents input processed");
-            roundText.text = "Opponents input processed";
-            TicTacToe.instance.ProcessOthersInput(otherPlayersInput.result);
-        }
-
-        if(TicTacToe.instance.firstRound) TicTacToe.instance.firstRound = false;
-
-        //Now your turn
-        Debug.Log("Your turn");
-        roundText.text = "Awaiting  your input";
-        TicTacToe.instance.isPlayersTurn = true;
-    }
+    //     //Now your turn
+    //     Debug.Log("Your turn");
+    //     roundText.text = "Awaiting  your input";
+    //     TicTacToe.instance.isPlayersTurn = true;
+    // }
 
     // public async Task InputAction(string _position)
     // {
@@ -192,7 +141,7 @@ public class GetRequests : MonoBehaviour
         getRequests["debugInt"] = async (args) =>
         {
             uint[] intData = args.Item2;
-            foreach(uint _uint in intData)
+            foreach (uint _uint in intData)
             {
                 Debug.Log($"Received int: {_uint}");
             }
@@ -201,7 +150,7 @@ public class GetRequests : MonoBehaviour
         getRequests["debugString"] = async (args) =>
         {
             string[] stringData = args.Item3;
-            foreach(string _string in stringData)
+            foreach (string _string in stringData)
             {
                 Debug.Log($"Received string: {_string}");
             }
@@ -214,12 +163,12 @@ public class GetRequests : MonoBehaviour
 
             //Login
             LoginResponse response = await GetRequest<LoginResponse>($"user_login.php?User={_username}&pass={MD5Helper.EncryptToMD5(_password)}");
-            if (!response.success) 
-            { 
-                Debug.Log($"Login failed: {response.message}"); 
-                string[] errorMessage = new string[1]{response.message};
+            if (!response.success)
+            {
+                Debug.Log($"Login failed: {response.message}");
+                string[] errorMessage = new string[1] { response.message };
                 serverBehaviour.SendDataToClient(args.Item1, "loginUser", 0, _stringData: errorMessage);
-                return; 
+                return;
             }
 
             Debug.Log($"User login successful!");
@@ -227,7 +176,7 @@ public class GetRequests : MonoBehaviour
             //Get user info
             UserInfo userInfo = await GetRequest<UserInfo>("user_info.php");
             connectedUsers.Add(userInfo.userID, userInfo);
-            string[] userInfoArray = new string[5]{userInfo.userID.ToString(), userInfo.Username, userInfo.Email, userInfo.Country, userInfo.DateOfBirth};
+            string[] userInfoArray = new string[5] { userInfo.userID.ToString(), userInfo.Username, userInfo.Email, userInfo.Country, userInfo.DateOfBirth };
             serverBehaviour.SendDataToClient(args.Item1, "loginUser", 1, _stringData: userInfoArray);
         };
 
@@ -245,7 +194,9 @@ public class GetRequests : MonoBehaviour
             Debug.Log($"Match Found! Match ID: {matchFound.value}");
 
             //Create dictionary entry if it doesnt exist yet
-            if(!playersInMatches.ContainsKey((uint)matchFound.value)) playersInMatches.Add((uint)matchFound.value, new List<PokerPlayer>());
+            //if(!playersInMatches.ContainsKey((uint)matchFound.value)) playersInMatches.Add((uint)matchFound.value, new List<PokerPlayer>());
+
+            if (!pokerMatches.ContainsKey((uint)matchFound.value)) pokerMatches.Add((uint)matchFound.value, new PokerMatch());
 
             //Add user to dictionary
             PokerPlayer newPlayer = new()
@@ -253,14 +204,15 @@ public class GetRequests : MonoBehaviour
                 userID = (int)args.Item2[0],
                 connectionID = args.Item1
             };
-            playersInMatches[(uint)matchFound.value].Add(newPlayer);  
-            
+            //playersInMatches[(uint)matchFound.value].Add(newPlayer);  
+            pokerMatches[(uint)matchFound.value].playersInMatch.Add(newPlayer);
 
-            uint[] matchID = new uint[1]{(uint)matchFound.value};
+
+            uint[] matchID = new uint[1] { (uint)matchFound.value };
             serverBehaviour.SendDataToClient(args.Item1, "findMatch", 1, _intData: matchID);
 
             //Call setup match
-            if(!setupMatches.Contains(matchID[0]))
+            if (!setupMatches.Contains(matchID[0]))
             {
                 await RunTask(args.Item1, "waitForPlayers", matchID);
             }
@@ -268,18 +220,18 @@ public class GetRequests : MonoBehaviour
 
         getRequests["waitForPlayers"] = async (args) =>
         {
-            if(setupMatches.Contains(args.Item2[0])) return;
+            if (setupMatches.Contains(args.Item2[0])) return;
             setupMatches.Add(args.Item2[0]);
             //Check if all players are connected (5 means ready to start)
             SingleInt waitForPlayers = new();
             waitForPlayers = await GetRequest<SingleInt>($"find_match.php?behaviour=1&MatchID={args.Item2[0]}&connPlayers={waitForPlayers.value2}");
 
-            switch(waitForPlayers.value)
+            switch (waitForPlayers.value)
             {
                 //Wait longer, not all players have connected
                 case 1:
                     await Task.Delay(500); // Wait .5 second
-                    await RunTask(args.Item1, "waitForPlayers", new uint[1]{args.Item2[0]});
+                    await RunTask(args.Item1, "waitForPlayers", new uint[1] { args.Item2[0] });
                     break;
                 //Wait 10s to allow more people to join
                 case 2:
@@ -292,13 +244,13 @@ public class GetRequests : MonoBehaviour
                         tenSecondTimer++;
 
                         waitForPlayers = await GetRequest<SingleInt>($"find_match.php?behaviour=1&MatchID={args.Item2[0]}&connPlayers={waitForPlayers.value}");
-                        if(waitForPlayers.value == 2) await RunTask(args.Item1, "waitForPlayers", new uint[1]{args.Item2[0]});
+                        if (waitForPlayers.value == 2) await RunTask(args.Item1, "waitForPlayers", new uint[1] { args.Item2[0] });
                         else if (tenSecondTimer < 10) break;
                     }
 
                     //Setup match
-                    await RunTask(args.Item1, "setupMatch", new uint[1]{args.Item2[0]});
-                break;
+                    await RunTask(args.Item1, "setupMatch", new uint[1] { args.Item2[0] });
+                    break;
                 //Start in 3 seconds
                 case 3:
                     int threeSecondTimer = 0;
@@ -311,10 +263,10 @@ public class GetRequests : MonoBehaviour
                     }
 
                     //Setup match
-                    await RunTask(args.Item1, "setupMatch", new uint[1]{args.Item2[0]});
-                break;
+                    await RunTask(args.Item1, "setupMatch", new uint[1] { args.Item2[0] });
+                    break;
             }
-            
+
 
             //Wait 10s to let more people join
 
@@ -325,122 +277,107 @@ public class GetRequests : MonoBehaviour
         {
             Debug.Log("Setup match!");
 
-            if (args.Item2 == null)
-            {
-                Debug.LogError("args.Item2 is null or empty!");
-                return;
-            }
-            else if (args.Item2.Length == 0)
-            {
-                Debug.LogError("args.Item2 is null or empty!");
-                return;
-            }
-
             uint matchID = args.Item2[0];
-
-            if (!playersInMatches.ContainsKey(matchID) || playersInMatches[matchID] == null)
-            {
-                Debug.LogError($"No players found for match ID {matchID}.");
-                return;
-            }
 
             //Initialize list of poker players
             List<PokerPlayer> connectedPlayers = new();
-            foreach(PokerPlayer pokerPlayer in playersInMatches[matchID])
+            foreach (PokerPlayer pokerPlayer in pokerMatches[matchID].playersInMatch)
             {
                 connectedPlayers.Add(pokerPlayer);
             }
 
             if (Poker.instance == null)
             {
-                 Debug.LogError($"No poker instance found.");
-                 return;
+                Debug.LogError($"No poker instance found.");
+                return;
             }
-
-            //error below here
 
             //Make a deck with enough cards for each player + the shared cards
             List<PokerCard> deck = Poker.instance.GetShuffledCards(connectedPlayers.Count);
-            if (deck == null)
-            {
-                Debug.LogError("GetShuffledCards returned null!");
-                return;
-            }
 
-            if (matchDecks == null || deck == null)
-            {
-                Debug.LogError($"matchDecks, ID or deck");
-                return;
-            }
-
-            matchDecks.Add(matchID, deck);
+            pokerMatches[matchID].matchDeck = deck;
 
             //Deal cards
 
-            foreach(PokerPlayer _player in connectedPlayers)
+            foreach (PokerPlayer _player in connectedPlayers)
             {
-                for(int i = 0; i < 2; i++)
+                for (int i = 0; i < 2; i++)
                 {
-                    if(matchDecks[matchID].Count == 0)
+                    if (pokerMatches[matchID].matchDeck.Count == 0)
                     {
                         Debug.LogError($"Deck empty while dealing to player {_player.connectionID}!");
                         return;
                     }
 
-                    if(i == 0)
+                    if (i == 0)
                     {
-                        _player.handCard1 = matchDecks[matchID][0].cardID;
+                        _player.handCard1 = pokerMatches[matchID].matchDeck[0].cardID;
                     }
                     else
                     {
-                        _player.handCard2 = matchDecks[matchID][0].cardID;
+                        _player.handCard2 = pokerMatches[matchID].matchDeck[0].cardID;
                     }
-                    matchDecks[matchID].RemoveAt(0);
+                    pokerMatches[matchID].matchDeck.RemoveAt(0);
                 }
-                serverBehaviour.SendDataToClient(_player.connectionID, "getCard", 1, _intData: new uint[2]{(uint)_player.handCard1, (uint)_player.handCard2}); 
+                serverBehaviour.SendDataToClient(_player.connectionID, "getCard", 1, _intData: new uint[2] { (uint)_player.handCard1, (uint)_player.handCard2 });
             }
 
             //should still be 5 cards left in the deck
-            Debug.Log($"Cards left in deck for match {matchID}: {matchDecks[matchID].Count}");
+            Debug.Log($"Cards left in deck for match {matchID}: {pokerMatches[matchID].matchDeck.Count}");
 
-            //Do blinds
+            //Set random turn order
+            int playerOne = UnityEngine.Random.Range(0, connectedPlayers.Count);
 
-            //UI Stuff
+            List<PokerPlayer> randomTurnOrder = new();
 
+            foreach (PokerPlayer _player in connectedPlayers) randomTurnOrder.Add(null);
+            for (int i = 0; i < connectedPlayers.Count; i++)
+            {
+                randomTurnOrder[UnityEngine.Random.Range(0, connectedPlayers.Count)] = connectedPlayers[i];
+            }
+            connectedPlayers = randomTurnOrder;
 
-            // PokerMatchCardInfo cardInfo = new();
-            // while (cardInfo.handCard1 == 0)
-            // {
-            //     //roundText.text = "Awaiting setup completion";
-            //     //Debug.Log($"Awaiting setup completion: {setupComplete.value}");
-            //     cardInfo = await GetRequest<PokerMatchCardInfo>($"find_match.php?behaviour=3&UserID={args.Item2[0]}&MatchID={args.Item2[1]}");
-            //     await Task.Delay(1000); // Wait 1 second
-            // }
-            // Debug.Log($"Started Match");
-            // uint[] cardInfoArray = new uint[2]{(uint)cardInfo.handCard1, (uint)cardInfo.handCard2};
-            // serverBehaviour.SendDataToClient(args.Item1, "cardInfo", 1, _intData: cardInfoArray);
+            for (int i = 0; i < connectedPlayers.Count; i++)
+            {
+                //First int is order in turn, second int is userID
+                serverBehaviour.SendDataToClient(connectedPlayers[0].connectionID, "setTurnOrder", 1, _intData: new uint[2] { (uint)i, (uint)connectedPlayers[i].userID });
+            }
 
-            // SingleInt blindSetup = new();
-            // //Setup blinds
-            // while (blindSetup.value == 0)
-            // {
-            //     //roundText.text = "Awaiting setup completion";
-            //     //Debug.Log($"Awaiting setup completion: {setupComplete.value}");
-            //     blindSetup = await GetRequest<SingleInt>($"play_poker.php?behaviour=1");
-            //     await Task.Delay(500); // Wait .5 second
-            // }
+            //Setup blinds (first int is )
 
-            // PokerMatchPlayerInfo playerInfo = await GetRequest<PokerMatchPlayerInfo>($"play_poker.php");
-            // uint[] playerInfoArray = new uint[3]{(uint)playerInfo.playerID, (uint)playerInfo.betAmount, (uint)playerInfo.remainingChips};
-            // serverBehaviour.SendDataToClient(args.Item1, "playerInfo", 1, _intData: playerInfoArray);
+            //small and big blind on server
+            connectedPlayers[0].betAmount = 20;
+            connectedPlayers[1].betAmount = 40;
+
+            //small and big blind to clients
+            for (int i = 0; i < 2; i++)
+            {
+                //Set small blind and big blind
+                foreach (PokerPlayer _player in connectedPlayers)
+                {
+                    //UserID, betAmount
+                    serverBehaviour.SendDataToClient(_player.connectionID, "setBlind", 1, _intData: new uint[2] { (uint)_player.userID, (uint)(i * 20) });
+                }
+            }
+
+            //set current turn
+            pokerMatches[matchID].currentTurnUserID = connectedPlayers[2].userID;
+            foreach (PokerPlayer _player in connectedPlayers)
+            {
+                //user id of new turn player
+                serverBehaviour.SendDataToClient(_player.connectionID, "startPlayerTurn", 1, _intData: new uint[1] { (uint)connectedPlayers[2].userID });
+            }
 
             //UI STUFF
 
-            // UIManager.instance.ToggleUIElement("UserInfo", false);
-            // UIManager.instance.ToggleUIElement("PokerScreen", true);
-            // UIManager.instance.GetTextElementFromDict("Chips").text = "Chips: " + playerInfo.remainingChips;
-            // UIManager.instance.GetTextElementFromDict("Bet").text = "Bet: " + playerInfo.betAmount;
-            // Poker.instance.GenerateHand(cardInfo.handCard1, cardInfo.handCard2);
-        };
+                // UIManager.instance.ToggleUIElement("UserInfo", false);
+                // UIManager.instance.ToggleUIElement("PokerScreen", true);
+                // UIManager.instance.GetTextElementFromDict("Chips").text = "Chips: " + playerInfo.remainingChips;
+                // UIManager.instance.GetTextElementFromDict("Bet").text = "Bet: " + playerInfo.betAmount;
+                // Poker.instance.GenerateHand(cardInfo.handCard1, cardInfo.handCard2);
+            }
+            ;
+
+
     }
 }
