@@ -49,6 +49,7 @@ public class ClientDataProcess : MonoBehaviour
             {
                 //Match found
                 //Setup match
+                Poker.instance.userMatchID = (int)intData[0];    
                 UIManager.instance.ToggleUIElement("UserInfo", false);
                 //ClientBehaviour.instance.SendInt(new uint[2]{(uint)ClientBehaviour.instance.GetUserInfo().userID, intData[0]}, "setupMatch");
             }
@@ -95,12 +96,23 @@ public class ClientDataProcess : MonoBehaviour
 
         };
         //First int is userID, second int is betAmount
-        dataProcessing["setBlind"] = (success, intData, stringData) =>
+        dataProcessing["setBet"] = (success, intData, stringData) =>
         {
             if (success == 1)
             {
                 //Set bet amount locally
-                Poker.instance.playersByUserID[intData[0]].betAmount = (int)intData[1];
+                int newBetAmount = (int)intData[1];
+                Poker.instance.playersByUserID[intData[0]].betAmount = newBetAmount;
+                bool newBetIsLower = false;
+                foreach(var kvp in Poker.instance.playersByUserID)
+                {
+                    if(kvp.Value.betAmount > newBetAmount)
+                    {
+                        newBetIsLower = true;
+                    }
+                }
+                if(newBetIsLower) Debug.LogWarning($"New bet {newBetAmount} is LOWER than existing bet");
+                else Poker.instance.currentMatchBet = newBetAmount;
 
                 //Do UI shit
             }
