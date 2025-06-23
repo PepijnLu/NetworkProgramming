@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
@@ -32,12 +33,6 @@ public class UIManager : MonoBehaviour
         }  
     }
 
-    // Update is called once per frame
-    void Update()
-    {
-        
-    }
-
     public void DisplayUserInfo(string _username, string _email, string _country, string _dob)
     {
         GetTextElementFromDict("INFO_Username").text = _username;
@@ -67,9 +62,8 @@ public class UIManager : MonoBehaviour
         element.SetActive(_active);
     }
 
-    public void StartTicTacToe()
+    public IEnumerator HandleNotEnoughChips()
     {
-        ToggleUIElement("UserInfo", false);
-        ToggleUIElement("TicTacToe", true);
+        yield return null;
     }
 }

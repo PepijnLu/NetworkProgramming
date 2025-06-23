@@ -51,26 +51,6 @@ public class UserInfo
     public string DateOfBirth;
 }
 
-public class PokerMatchCardInfo
-{
-    public int handCard1;
-    public int handCard2;
-    public int deckCard1;
-    public int deckCard2;
-    public int deckCard3;
-    public int deckCard4;
-    public int deckCard5;
-}
-
-public class PokerMatchPlayerInfo
-{
-    public int playerID;
-    public int betAmount;
-    public int remainingChips;
-    public string chosenAction;
-    public int waiting;
-}
-
 public class SingleInt
 {
     public int value = 0;

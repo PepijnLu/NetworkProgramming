@@ -17,6 +17,8 @@ public class PokerPlayer
     public int handCard2;
     public int betAmount;
     public int orderInTurn;
+    public int userChips;
+    public PokerHandResult pokerHandResult;
 }
 
 public class PokerMatch
@@ -29,17 +31,29 @@ public class PokerMatch
     public int currentBet;
     public int lastRaiseUserID;
     public GAME_STATE gameState;
+    public bool bigBlindReraised;
 }
 public class Poker : MonoBehaviour
 {
-    public static Poker instance;
+    [Header("Used By Server")]
+    [SerializeField] PokerHandEvaluator pokerHandEvaluator;
+    [Header("Used By Client")]
     [SerializeField] ClientDataProcess clientDataProcess;
-    [SerializeField] List<PokerCard> pokerCards;
-    public int userMatchID;
-    public int currentMatchBet;
+    [SerializeField] GameObject placeholderRiver;
+    [SerializeField] Transform pokerHandC1Transform;
+    [SerializeField] Transform pokerHandC2Transform;
+    List<Transform> sharedCardTransforms;
     public Dictionary<uint, PokerPlayer> playersByUserID = new();
+    public int userMatchID;
+    public bool isYourTurn;
+    public int currentMatchBet;
+    public int userChips;
+    public int userBet;
+    public int raiseBetAmount;
+    [Header("Used By Both")]
+    public static Poker instance;
+    [SerializeField] List<PokerCard> pokerCards;
     Dictionary<int, PokerCard> pokerCardsDict = new();
-    [SerializeField] Transform deckTransform1, deckTransform2, deckTransform3, deckTransform4, deckTransform5, pokerHand1Transform, pokerHand2Transform;
     void Awake()
     {
         instance = this;
@@ -55,8 +69,73 @@ public class Poker : MonoBehaviour
 
     }
 
-    public void EndPokerRound()
+    //Called from server
+    public void EndPokerRound(PokerMatch pokerMatch)
     {
+        List<PokerPlayer> remainingPlayers = pokerMatch.bettingPlayers;
+        List<PokerPlayer> roundWinners = new();
+
+        if(remainingPlayers.Count == 0)
+        {
+            Debug.LogError("Cant be 0 players remaining");
+            return;
+        }
+        else if (remainingPlayers.Count == 1)
+        {
+            roundWinners.Add(remainingPlayers[0]);
+        }
+        else if(remainingPlayers.Count > 1)
+        {
+            //SHOWDOWN
+            int highestHand = 0;
+            int highestRelevantRank = 0;
+            List<PokerCard> sharedCards = pokerMatch.matchDeck;
+            foreach(PokerPlayer _player in remainingPlayers)
+            {
+                List<PokerCard> playerPlusSharedCards = new();
+                foreach(PokerCard _card in sharedCards) playerPlusSharedCards.Add(_card);
+                playerPlusSharedCards.Add(pokerCardsDict[_player.handCard1]);
+                playerPlusSharedCards.Add(pokerCardsDict[_player.handCard2]);
+
+                PokerHandResult _result = pokerHandEvaluator.EvaluateHand(playerPlusSharedCards);
+                _player.pokerHandResult = _result;
+
+                if(_result.handValue == highestHand)
+                {
+                    if(_result.keyRank > highestRelevantRank)
+                    {
+                        roundWinners.Clear();
+                        highestRelevantRank = _result.keyRank;
+                        roundWinners.Add(_player);
+                    }
+                    else if(_result.keyRank == highestRelevantRank)
+                    {
+                        roundWinners.Add(_player);
+                    }
+                }
+                else if(_result.handValue >= highestHand)
+                {
+                    roundWinners.Clear();
+                    highestRelevantRank = _result.keyRank;
+                    highestHand = _result.handValue;
+                    roundWinners.Add(_player);
+                }
+            }
+
+            //Distribute chips under winners
+            int shareOfBet = pokerMatch.currentBet / roundWinners.Count;
+            foreach(PokerPlayer _pokerPlayer in roundWinners) _pokerPlayer.userChips += shareOfBet;
+
+            //Update remaining player chips in database
+            foreach(PokerPlayer _pokerPlayer in pokerMatch.bettingPlayers)
+            {
+                GetRequests.instance.SetPlayerChips(_pokerPlayer.userID, _pokerPlayer.userChips);
+            }
+
+            //Reset necessary values
+
+            //Start new round
+        }
         Debug.Log("Round ended");
     }
 
@@ -82,25 +161,43 @@ public class Poker : MonoBehaviour
 
     public void GenerateHand(int card1ID, int card2ID)
     {
-        PokerCard newCard1 = Instantiate(pokerCardsDict[card1ID], pokerHand1Transform);
-        PokerCard newCard2 = Instantiate(pokerCardsDict[card2ID], pokerHand2Transform);
+        Instantiate(pokerCardsDict[card1ID], pokerHandC1Transform);
+        Instantiate(pokerCardsDict[card2ID], pokerHandC2Transform);
+    }
 
-        // PokerCard newDeckCard1 = Instantiate(pokerCardsDict[deckCard1], deckTransform1);
-        // PokerCard newDeckCard2 = Instantiate(pokerCardsDict[deckCard2], deckTransform2);
-        // PokerCard newDeckCard3 = Instantiate(pokerCardsDict[deckCard3], deckTransform3);
-        // PokerCard newDeckCard4 = Instantiate(pokerCardsDict[deckCard4], deckTransform4);
-        // PokerCard newDeckCard5 = Instantiate(pokerCardsDict[deckCard5], deckTransform5);
+    public void GenerateSharedCard(int _cardNumber, int _cardID)
+    {
+        Debug.Log($"Generate Shared Card {_cardNumber}, count: {sharedCardTransforms.Count}");
+        Transform cardTransform = sharedCardTransforms[_cardNumber - 1];
+        Destroy(cardTransform.GetChild(0).gameObject);
+        PokerCard newCard = Instantiate(pokerCardsDict[_cardID], cardTransform);
+        newCard.transform.localRotation = Quaternion.Euler(0, 180, 0);
+        Debug.Log($"Generated Shared Card {_cardNumber}"); 
     }
 
     //1 = fold, 2 is call, 3 = raise
-    public void PlayTurn(int _action, int betAmount)
+    public void PlayTurn(int _action)
     {
-        if((betAmount < currentMatchBet) && (_action == 2))
+        if(!isYourTurn) return;
+
+        int betAmount = 0;
+
+        if(_action == 2)
         {
-            Debug.Log("Cannot check with bet less than current bet");
+            betAmount = currentMatchBet - userBet;
+        }
+        else if (_action == 3)
+        {
+            betAmount = raiseBetAmount;
+        }
+
+        if(betAmount > userChips)
+        {
+            Debug.Log("Cannot bet more than you have");
             return;
         }
-        else if((betAmount < currentMatchBet + 20) && (_action == 3))
+
+        if((betAmount < currentMatchBet + 20) && (_action == 3))
         {
             Debug.Log("Cannot bet less than current bet + minimal raise amount of 20");
             return;
@@ -109,6 +206,47 @@ public class Poker : MonoBehaviour
         int userID = clientDataProcess.userInfo.userID;
         int matchID = userMatchID;
 
+        userBet = betAmount;
+        userChips -= betAmount;
+        UIManager.instance.GetTextElementFromDict("YourChips").text = $"Chips: {userChips}";
+        EndPlayerTurn();
         ClientBehaviour.instance.SendInt(new uint[4]{(uint)userID, (uint)matchID, (uint)_action, (uint)betAmount}, "playTurn");
+    }
+
+    public void StartPokerRound()
+    {
+        GameObject _river = Instantiate(placeholderRiver);
+        sharedCardTransforms = new();
+        for(int i = 0; i < 5; i++)
+        {
+            sharedCardTransforms.Add(_river.transform.GetChild(i));
+        }
+    }
+
+    public void EndPlayerTurn()
+    {
+        isYourTurn = false;
+        UIManager.instance.GetUIElementFromDict("BetButtons").SetActive(false);
+    }
+
+    public void ChangeRaiseAmount(bool _increment)
+    {
+        if(_increment)
+        {
+            if((raiseBetAmount + 20) <= userChips) 
+            {
+                raiseBetAmount += 20;
+            }
+            else 
+            {
+                Debug.LogWarning("User doesnt have enough chips to increment bet");
+            }
+        }
+        else
+        {
+            if((raiseBetAmount - 20) >= 0) raiseBetAmount -= 20;
+        }
+
+        UIManager.instance.GetTextElementFromDict("RaiseBetAmount").text = $"{raiseBetAmount}";
     }
 }

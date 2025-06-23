@@ -11,7 +11,7 @@ public class MenuButtons : MonoBehaviour
 
     public void EnableRegisterScreen()
     {
-         UIManager.instance.ToggleUIElement("Login/Register", false);
+        UIManager.instance.ToggleUIElement("Login/Register", false);
         UIManager.instance.ToggleUIElement("RegisterScreen", true);
     }
 
@@ -44,12 +44,29 @@ public class MenuButtons : MonoBehaviour
     public void FindMatch()
     {
         //_ = GetRequests.instance.FindMatch();
+        ClientBehaviour.instance.SendInt(new uint[1]{(uint)ClientBehaviour.instance.GetUserInfo().userID}, "preMatchSetup");
 
-        ClientBehaviour.instance.SendInt(new uint[1]{(uint)ClientBehaviour.instance.GetUserInfo().userID}, "findMatch");
+        UIManager.instance.ToggleUIElement("UserInfo", false);
+        UIManager.instance.ToggleUIElement("PreMatchSetup", true);
+
+        //ClientBehaviour.instance.SendInt(new uint[1]{(uint)ClientBehaviour.instance.GetUserInfo().userID}, "findMatch");
     }
 
-    public void TicTacToeInput(GameObject _button)
+    public void PlayTurn(int _action)
     {
-        TicTacToe.instance.InputPosition(_button.name);
+        Poker.instance.PlayTurn(_action);
+    }
+
+    public void ChangeRaiseAmount(bool _increment)
+    {
+        Poker.instance.ChangeRaiseAmount(_increment);
+    }
+
+    public void LeaveMatch()
+    {
+        ClientBehaviour.instance.SendInt(new uint[1]{(uint)ClientBehaviour.instance.GetUserInfo().userID}, "leaveMatch");
+        UIManager.instance.ToggleUIElement("Lobby", false);
+        UIManager.instance.ToggleUIElement("Matchmaking", false);
+        UIManager.instance.ToggleUIElement("UserInfo", true);
     }
 }

@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using TMPro;
 using System;
+using UnityEditor.Rendering;
 
 public class GetRequests : MonoBehaviour
 {
@@ -135,6 +136,12 @@ public class GetRequests : MonoBehaviour
         return processedData;
     }
 
+    public async void SetPlayerChips(int userID, int newChipAmount)
+    {
+        SingleInt success = await GetRequest<SingleInt>($"poker?behaviour=2&UserID={userID}&NewAmount={newChipAmount}");
+        if(success.value == 0) Debug.LogWarning("error setting chips");
+    }
+
     void InstantiateDictionary()
     {
         getRequests = new();
@@ -175,6 +182,12 @@ public class GetRequests : MonoBehaviour
 
             //Get user info
             UserInfo userInfo = await GetRequest<UserInfo>("user_info.php");
+
+            if(connectedUsers.ContainsKey(userInfo.userID))
+            {
+                Debug.LogWarning("User already connected");
+                return;
+            }
             connectedUsers.Add(userInfo.userID, userInfo);
             string[] userInfoArray = new string[5] { userInfo.userID.ToString(), userInfo.Username, userInfo.Email, userInfo.Country, userInfo.DateOfBirth };
             serverBehaviour.SendDataToClient(args.Item1, "loginUser", 1, _stringData: userInfoArray);
@@ -208,69 +221,129 @@ public class GetRequests : MonoBehaviour
             pokerMatches[(uint)matchFound.value].playersInMatch.Add(newPlayer);
 
 
-            uint[] matchID = new uint[1] { (uint)matchFound.value };
+            uint[] matchID = new uint[2] { (uint)matchFound.value, 0 };
             serverBehaviour.SendDataToClient(args.Item1, "findMatch", 1, _intData: matchID);
 
             //Call setup match
             if (!setupMatches.Contains(matchID[0]))
             {
                 await RunTask(args.Item1, "waitForPlayers", matchID);
+                if (!setupMatches.Contains(matchID[0]))
+                {
+                    foreach(PokerPlayer _player in pokerMatches[(uint)matchFound.value].playersInMatch)
+                    {
+                        serverBehaviour.SendDataToClient(_player.connectionID, "setLobbyStatus", 1, _stringData: new string[1] { "Waiting for players..." });
+                    }
+                }
             }
         };
 
         getRequests["waitForPlayers"] = async (args) =>
         {
-            if (setupMatches.Contains(args.Item2[0])) return;
-            setupMatches.Add(args.Item2[0]);
+            uint matchID = args.Item2[0];
+            if (setupMatches.Contains(matchID) && args.Item2[1] == 0) return;
+            setupMatches.Add(matchID);
             //Check if all players are connected (5 means ready to start)
             SingleInt waitForPlayers = new();
-            waitForPlayers = await GetRequest<SingleInt>($"find_match.php?behaviour=1&MatchID={args.Item2[0]}&connPlayers={waitForPlayers.value2}");
+            waitForPlayers = await GetRequest<SingleInt>($"find_match.php?behaviour=1&MatchID={matchID}&connPlayers={waitForPlayers.value2}");
+
+            if(waitForPlayers.value2 < 2)
+            {
+                await Task.Delay(1000);
+                await RunTask(args.Item1, "waitForPlayers", new uint[2] { matchID, 1 });
+                Debug.Log($"Less than 2 players in match: {matchID}");
+                return;
+            }
+
+            Debug.Log("2 or more players");
 
             switch (waitForPlayers.value)
             {
                 //Wait longer, not all players have connected
                 case 1:
+                    Debug.Log("Not all players connected");
                     await Task.Delay(500); // Wait .5 second
-                    await RunTask(args.Item1, "waitForPlayers", new uint[1] { args.Item2[0] });
+                    await RunTask(args.Item1, "waitForPlayers", new uint[2] { matchID, 1 });
                     break;
-                //Wait 10s to allow more people to join
+                //Wait 10s to allow more people to join (set to 3 for testing)
                 case 2:
+                    Debug.Log("Allowing more people to join");
+                    //Set lobby usernames
+                    // foreach(PokerPlayer _player in pokerMatches[matchID].playersInMatch)
+                    // {
+                    //     serverBehaviour.SendDataToClient(_player.connectionID, "setLobbyStatus", 1, _stringData: new string[2] { $"Starting in: {(10 - tenSecondTimer)}" });
+                    // }
+
                     int tenSecondTimer = 0;
                     while (tenSecondTimer < 10)
                     {
                         //Change timer
 
+                        foreach(PokerPlayer _player in pokerMatches[matchID].playersInMatch)
+                        {
+                            serverBehaviour.SendDataToClient(_player.connectionID, "setLobbyStatus", 1, _stringData: new string[1] { $"Starting in: {(10 - tenSecondTimer)}" });
+                        }
+
+                        if(tenSecondTimer == 7)
+                        {
+                            //Disable leave button
+                            foreach(PokerPlayer _player in pokerMatches[matchID].playersInMatch)
+                            {
+                                serverBehaviour.SendDataToClient(_player.connectionID, "disableLeaveButton", 1, _intData: new uint[0] { });
+                            }
+                        }
+
                         await Task.Delay(1000);
                         tenSecondTimer++;
 
-                        waitForPlayers = await GetRequest<SingleInt>($"find_match.php?behaviour=1&MatchID={args.Item2[0]}&connPlayers={waitForPlayers.value}");
-                        if (waitForPlayers.value == 2) await RunTask(args.Item1, "waitForPlayers", new uint[1] { args.Item2[0] });
-                        else if (tenSecondTimer < 10) break;
+                        waitForPlayers = await GetRequest<SingleInt>($"find_match.php?behaviour=1&MatchID={matchID}&connPlayers={waitForPlayers.value}");
+                        if (waitForPlayers.value != 2) 
+                        {
+                            Debug.Log("Restarting timer");
+                            await RunTask(args.Item1, "waitForPlayers", new uint[2] { matchID, 1 });
+                        }
                     }
 
                     //Setup match
-                    await RunTask(args.Item1, "setupMatch", new uint[1] { args.Item2[0] });
+                    Debug.Log("Setup match timer");
+                    await RunTask(args.Item1, "setupMatch", new uint[1] { matchID });
                     break;
-                //Start in 3 seconds
+                //Start in 5 seconds
                 case 3:
-                    int threeSecondTimer = 0;
-                    while (threeSecondTimer < 3)
+                    Debug.Log("Starting in 5");
+                    //Set lobby usernames
+                    // foreach(PokerPlayer _player in pokerMatches[matchID].playersInMatch)
+                    // {
+                    //     serverBehaviour.SendDataToClient(_player.connectionID, "setLobbyStatus", 1, _stringData: new string[2] { $"Starting in: {(10 - tenSecondTimer)}" });
+                    // }
+                    int fiveSecondTimer = 0;
+                    while (fiveSecondTimer < 5)
                     {
+                        //Check if no one left
+
+                        if(fiveSecondTimer == 2)
+                        {
+                            //Disable leave button
+                            foreach(PokerPlayer _player in pokerMatches[matchID].playersInMatch)
+                            {
+                                serverBehaviour.SendDataToClient(_player.connectionID, "disableLeaveButton", 1, _intData: new uint[0] { });
+                            }
+                        }
                         //Change timer
+                        foreach(PokerPlayer _player in pokerMatches[matchID].playersInMatch)
+                        {
+                            serverBehaviour.SendDataToClient(_player.connectionID, "setLobbyStatus", 1, _stringData: new string[1] { $"Starting in: {(5 - fiveSecondTimer)}" });
+                        }
 
                         await Task.Delay(1000);
-                        threeSecondTimer++;
+                        fiveSecondTimer++;
                     }
 
+                    Debug.Log("Setup match timer");
                     //Setup match
-                    await RunTask(args.Item1, "setupMatch", new uint[1] { args.Item2[0] });
+                    await RunTask(args.Item1, "setupMatch", new uint[1] { matchID });
                     break;
             }
-
-
-            //Wait 10s to let more people join
-
-            //Setup the match when ready
         };
 
         getRequests["setupMatch"] = async (args) =>
@@ -323,27 +396,32 @@ public class GetRequests : MonoBehaviour
             //Set random turn order
             int playerOne = UnityEngine.Random.Range(0, connectedPlayers.Count);
 
-            List<PokerPlayer> randomTurnOrder = new();
-
-            foreach (PokerPlayer _player in connectedPlayers) randomTurnOrder.Add(null);
-            for (int i = 0; i < connectedPlayers.Count; i++)
+            //randomize turn order
+            for (int i = connectedPlayers.Count - 1; i > 0; i--)
             {
-                randomTurnOrder[UnityEngine.Random.Range(0, connectedPlayers.Count)] = connectedPlayers[i];
+                int j = UnityEngine.Random.Range(0, i + 1);
+                (connectedPlayers[i], connectedPlayers[j]) = (connectedPlayers[j], connectedPlayers[i]); // swap
             }
-
-            connectedPlayers = randomTurnOrder;
 
             pokerMatches[matchID].playersInMatch = connectedPlayers;
             pokerMatches[matchID].bettingPlayers = connectedPlayers;
 
             for (int i = 0; i < connectedPlayers.Count; i++)
             {
-                //First int is order in turn, second int is userID
-                serverBehaviour.SendDataToClient(connectedPlayers[0].connectionID, "setTurnOrder", 1, _intData: new uint[2] { (uint)i, (uint)connectedPlayers[i].userID });
+                foreach (PokerPlayer _player in connectedPlayers)
+                {
+                    //UserID, betAmount
+                    //First int is order in turn, second int is userID
+                    serverBehaviour.SendDataToClient(_player.connectionID, "setTurnOrder", 1, _intData: new uint[2] { (uint)i, (uint)connectedPlayers[i].userID });
+                }
             }
+
+            Debug.Log("Set turn order!");
 
             //set game state
             pokerMatches[matchID].gameState = GAME_STATE.PRE_FLOP;
+
+            Debug.Log("Set game state!");
 
             //small and big blind on server
             connectedPlayers[0].betAmount = 20;
@@ -360,123 +438,214 @@ public class GetRequests : MonoBehaviour
                 foreach (PokerPlayer _player in connectedPlayers)
                 {
                     //UserID, betAmount
-                    serverBehaviour.SendDataToClient(_player.connectionID, "setBet", 1, _intData: new uint[2] { (uint)connectedPlayers[i].userID, (uint)(i * 20) });
+                    serverBehaviour.SendDataToClient(_player.connectionID, "setBet", 1, _intData: new uint[2] { (uint)connectedPlayers[i].userID, (uint)(20 + (i * 20)) });
                 }
             }
 
+            Debug.Log("Set blinds!");
+
             //set current turn
-            pokerMatches[matchID].currentTurnUserID = connectedPlayers[2].userID;
+            if(connectedPlayers.Count <= 2) pokerMatches[matchID].currentTurnUserID = connectedPlayers[0].userID;
+            else pokerMatches[matchID].currentTurnUserID = connectedPlayers[2].userID;
+
+            
             foreach (PokerPlayer _player in connectedPlayers)
             {
                 //user id of new turn player
                 serverBehaviour.SendDataToClient(_player.connectionID, "startPlayerTurn", 1, _intData: new uint[1] { (uint)pokerMatches[matchID].currentTurnUserID });
             }
 
-            //UI STUFF
+            Debug.Log("Set current turn, setup complete!");
+        };
 
-                // UIManager.instance.ToggleUIElement("UserInfo", false);
-                // UIManager.instance.ToggleUIElement("PokerScreen", true);
-                // UIManager.instance.GetTextElementFromDict("Chips").text = "Chips: " + playerInfo.remainingChips;
-                // UIManager.instance.GetTextElementFromDict("Bet").text = "Bet: " + playerInfo.betAmount;
-                // Poker.instance.GenerateHand(cardInfo.handCard1, cardInfo.handCard2);
-            };
+        //first int is userID, second int is matchID, third int is action(1: fold 2: call 3: raise), fourth int is amount bet
+        getRequests["playTurn"] = async (args) =>
+        {
+            uint userID = args.Item2[0];
+            uint matchID = args.Item2[1];
 
-            //first int is userID, second int is matchID, third int is action(1: fold 2: call 3: raise), fourth int is amount bet
-            getRequests["playTurn"] = async (args) =>
+            Debug.Log($"Start handling turn for {userID}");
+
+            PokerMatch pokerMatch = pokerMatches[matchID];
+            PokerPlayer pokerPlayer = pokerMatch.playersByUserID[userID];
+
+            int indexOfCurrentPlayer = pokerMatch.bettingPlayers.IndexOf(pokerPlayer);
+            int indexOfNextPlayer = 0;
+
+            if (pokerMatch.bettingPlayers.Count - 1 < indexOfCurrentPlayer + 1) indexOfNextPlayer = 0;
+            else indexOfNextPlayer = indexOfCurrentPlayer + 1;
+
+            int userIDOfNextPlayer = pokerMatch.bettingPlayers[indexOfNextPlayer].userID;
+
+            switch (args.Item2[2])
             {
-                uint matchID = args.Item2[1];
-                PokerMatch pokerMatch = pokerMatches[matchID];
-                PokerPlayer pokerPlayer = pokerMatch.playersByUserID[args.Item2[0]];
-
-                int indexOfCurrentPlayer = pokerMatch.bettingPlayers.IndexOf(pokerPlayer);
-                int indexOfNextPlayer = 0;
-
-                if (pokerMatch.bettingPlayers.Count - 1 < indexOfCurrentPlayer + 1) indexOfNextPlayer = 0;
-                else indexOfNextPlayer = indexOfCurrentPlayer + 1;
-
-                int userIDOfNextPlayer = pokerMatch.bettingPlayers[indexOfNextPlayer].userID;
-
-                switch (args.Item2[2])
-                {
-                    //fold
-                    case 1:
-                        pokerMatch.bettingPlayers.Remove(pokerPlayer);
-                        foreach (PokerPlayer _player in pokerMatch.playersInMatch)
-                        {
-                            //UserID, betAmount
-                            serverBehaviour.SendDataToClient(_player.connectionID, "setBet", 1, _intData: new uint[2] { (uint)pokerPlayer.userID, 0 });
-                        }
-                        if (pokerMatch.bettingPlayers.Count <= 1)
-                        {
-                            Poker.instance.EndPokerRound();
-                            return;
-                        }
-                        break;
-                    //call
-                    case 2:
-                        foreach (PokerPlayer _player in pokerMatch.playersInMatch)
-                        {
-                            //UserID, betAmount
-                            serverBehaviour.SendDataToClient(_player.connectionID, "setBet", 1, _intData: new uint[2] { (uint)pokerPlayer.userID, args.Item2[3] });
-                        }
-                        break;
-                    //raise
-                    case 3:
-                        uint newBet = args.Item2[3];
-                        foreach (PokerPlayer _player in pokerMatch.playersInMatch)
-                        {
-                            //UserID, betAmount
-                            serverBehaviour.SendDataToClient(_player.connectionID, "setBet", 1, _intData: new uint[2] { (uint)pokerPlayer.userID, newBet });
-                        }
-                        pokerMatch.currentBet = (int)newBet;
-                        pokerMatch.lastRaiseUserID = pokerPlayer.userID;
-                        break;
-                    default:
-                        Debug.LogError($"Action non existant: ID: {args.Item2[2]}");
-                        break;
-                }
-                //Check for round end / change game state
-                if (pokerMatch.lastRaiseUserID == userIDOfNextPlayer)
-                {
-                    if (pokerMatch.gameState == GAME_STATE.SHOWDOWN)
+                //fold
+                case 1:
+                    Debug.Log("Turn: Fold");
+                    pokerMatch.bettingPlayers.Remove(pokerPlayer);
+                    foreach (PokerPlayer _player in pokerMatch.playersInMatch)
                     {
-                        Poker.instance.EndPokerRound();
+                        //UserID, betAmount
+                        serverBehaviour.SendDataToClient(_player.connectionID, "setBet", 1, _intData: new uint[2] { (uint)pokerPlayer.userID, 0 });
+                    }
+                    if (pokerMatch.bettingPlayers.Count <= 1)
+                    {
+                        Poker.instance.EndPokerRound(pokerMatch);
                         return;
                     }
-                    //If true, big blind gets opportunity to raise again
-                    else if (pokerMatch.gameState != GAME_STATE.PRE_FLOP)
+                    break;
+                //call
+                case 2:
+                    Debug.Log("Turn: Call");
+                    foreach (PokerPlayer _player in pokerMatch.playersInMatch)
                     {
-                        //Move to the next round
-                        pokerMatch.gameState = (GAME_STATE)((int)pokerMatch.gameState + 1);
+                        //UserID, betAmount
+                        serverBehaviour.SendDataToClient(_player.connectionID, "setBet", 1, _intData: new uint[2] { (uint)pokerPlayer.userID, (uint)pokerMatch.currentBet });
+                    }
+                    break;
+                //raise
+                case 3:
+                    Debug.Log("Turn: Raise");
+                    uint newBet = args.Item2[3];
+                    foreach (PokerPlayer _player in pokerMatch.playersInMatch)
+                    {
+                        //UserID, betAmount
+                        serverBehaviour.SendDataToClient(_player.connectionID, "setBet", 1, _intData: new uint[2] { (uint)pokerPlayer.userID, newBet });
+                    }
+                    pokerMatch.currentBet = (int)newBet;
+                    pokerMatch.lastRaiseUserID = pokerPlayer.userID;
+                    break;
+                default:
+                    Debug.LogError($"Action non existant: ID: {args.Item2[2]}");
+                    break;
+            }
+            Debug.Log("User input handling complete");
+            //Check for round end / change game state
+
+            bool advanceGameState = false;
+            pokerMatch.currentTurnUserID = userIDOfNextPlayer;
+
+            if(args.Item2[2] != 3)
+            {
+                Debug.Log($"Current User ID: {pokerPlayer.userID}, next user ID: {userIDOfNextPlayer}, last raised user ID: {pokerMatch.lastRaiseUserID}");
+
+                //If true, big blind gets opportunity to raise again
+                PokerPlayer nextPlayer = pokerMatch.playersByUserID[(uint)userIDOfNextPlayer];
+                //Debug.Log($"cond1: {pokerMatch.gameState} , {GAME_STATE.PRE_FLOP} - cond2: {pokerMatch.playersInMatch.IndexOf(nextPlayer)} , {1} - cond3: {pokerMatches[matchID].currentBet} , {40}");
+                if(pokerMatch.gameState == GAME_STATE.PRE_FLOP)
+                {
+                    if(pokerMatch.playersInMatch.IndexOf(nextPlayer) == 1 && (pokerMatches[matchID].currentBet == 40) && (!pokerMatch.bigBlindReraised) && (nextPlayer.betAmount == pokerMatches[matchID].currentBet))
+                    {
+                        //big blind gets to reraise
+                        pokerMatch.lastRaiseUserID = userIDOfNextPlayer;
+                        pokerMatch.bigBlindReraised = true;
+                        Debug.Log("Big blind gets to reraise");
+                    }
+                    else if (pokerMatch.lastRaiseUserID == userIDOfNextPlayer)
+                    {
+                        advanceGameState = true;
+                    }
+                }
+                else if(pokerMatch.gameState == GAME_STATE.SHOWDOWN)
+                {
+                    if (pokerMatch.lastRaiseUserID == userIDOfNextPlayer)
+                    {
+                        Poker.instance.EndPokerRound(pokerMatch);
+                        return;
+                    }
+                }
+                else
+                {
+                    if (pokerMatch.lastRaiseUserID == userIDOfNextPlayer)
+                    {
+                        advanceGameState = true;
                     }
                 }
 
-                //Handle new game state
+
+            }
+            
+            if(advanceGameState)
+            {
+                //Move to the next round
+                pokerMatch.gameState = (GAME_STATE)((int)pokerMatch.gameState + 1);
+                pokerMatch.lastRaiseUserID = pokerMatch.playersInMatch[0].userID;
+                pokerMatch.currentTurnUserID = pokerMatch.playersInMatch[0].userID;
                 switch (pokerMatch.gameState)
                 {
                     //Reveal cards 1,2,3
                     case GAME_STATE.FLOP:
+                        foreach (PokerPlayer _player in pokerMatch.playersInMatch)
+                        {
+                            //cardNumber, cardID
+                            serverBehaviour.SendDataToClient(_player.connectionID, "getSharedCard", 1, _intData: new uint[2] { 1,  (uint)pokerMatches[matchID].matchDeck[0].cardID});
+                        }
+                        foreach (PokerPlayer _player in pokerMatch.playersInMatch)
+                        {
+                            //cardNumber, cardID
+                            serverBehaviour.SendDataToClient(_player.connectionID, "getSharedCard", 1, _intData: new uint[2] { 2,  (uint)pokerMatches[matchID].matchDeck[1].cardID});
+                        }
+                        foreach (PokerPlayer _player in pokerMatch.playersInMatch)
+                        {
+                            //cardNumber, cardID
+                            serverBehaviour.SendDataToClient(_player.connectionID, "getSharedCard", 1, _intData: new uint[2] { 3,  (uint)pokerMatches[matchID].matchDeck[2].cardID});
+                        }
 
                         break;
                     //Reveal card 4
                     case GAME_STATE.TURN:
-
+                        foreach (PokerPlayer _player in pokerMatch.playersInMatch)
+                        {
+                            //cardNumber, cardID
+                            serverBehaviour.SendDataToClient(_player.connectionID, "getSharedCard", 1, _intData: new uint[2] { 4,  (uint)pokerMatches[matchID].matchDeck[3].cardID});
+                        }
                         break;
                     //Reveal card 5
                     case GAME_STATE.RIVER:
-
+                        foreach (PokerPlayer _player in pokerMatch.playersInMatch)
+                        {
+                            //cardNumber, cardID
+                            serverBehaviour.SendDataToClient(_player.connectionID, "getSharedCard", 1, _intData: new uint[2] { 5,  (uint)pokerMatches[matchID].matchDeck[4].cardID});
+                        }
                         break;
                 }
+            }
 
-                //Start next turn
-                pokerMatch.currentTurnUserID = userIDOfNextPlayer;
-                foreach (PokerPlayer _player in pokerMatch.playersInMatch)
-                {
-                    //user id of new turn player
-                    serverBehaviour.SendDataToClient(_player.connectionID, "startPlayerTurn", 1, _intData: new uint[1] { (uint)pokerMatch.currentTurnUserID });
-                }
-            };
+            //Start next turn
+            foreach (PokerPlayer _player in pokerMatch.playersInMatch)
+            {
+                //user id of new turn player
+                serverBehaviour.SendDataToClient(_player.connectionID, "startPlayerTurn", 1, _intData: new uint[1] { (uint)pokerMatch.currentTurnUserID });
+            }
 
+            Debug.Log($"Handling turn complete for {userID}");
+        };
+        //first int is userID
+        getRequests["preMatchSetup"] = async (args) =>
+        {
+            uint userID = args.Item2[0];
+            SingleInt newUserChipsRequest = await GetRequest<SingleInt>($"poker.php?behaviour=1&UserID={userID}");
+            int newUserChips = newUserChipsRequest.value;
+            serverBehaviour.SendDataToClient(args.Item1, "setPlayerChips", 1, _intData: new uint[1] { (uint)newUserChips });
+        };
+
+        //first int is userID, second int is matchID, third int is chip amount
+        getRequests["setUserChips"] = async (args) =>
+        {
+            uint userID = args.Item2[0];
+            uint matchID = args.Item2[1];
+            uint chipAmount = args.Item2[2];
+
+            pokerMatches[matchID].playersByUserID[userID].userChips = (int)chipAmount;
+        };
+
+        //first int is userID
+        getRequests["leaveMatch"] = async (args) =>
+        {
+            uint userID = args.Item2[0];
+
+            SingleInt newUserChipsRequest = await GetRequest<SingleInt>($"poker.php?behaviour=3&UserID={userID}");
+        };
 
     }
 }
