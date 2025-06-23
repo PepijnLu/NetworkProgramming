@@ -41,17 +41,6 @@ public class GetRequests : MonoBehaviour
         Debug.Log($"Server login successful! Session ID: {response.sessionId}");
     }
 
-    //Add date of birth support, password might not be getting added properly
-    public async Task RegisterUser(string _username, string _password, string _email, string _country, string _dateOfBirth = "")
-    {
-        //Login
-        LoginResponse response = await GetRequest<LoginResponse>($"register_user.php?User={_username}&Email={_email}&Pass={MD5Helper.EncryptToMD5(_password)}&Country={_country}");
-        if (!response.success) { Debug.LogError($"Registration failed: {response.message}"); return; }
-
-        Debug.Log($"User registered successfully!");
-
-    }
-
     public void LogoutUser(int connectionID)
     {
         foreach(var kvp in connectedUsers)
@@ -96,8 +85,9 @@ public class GetRequests : MonoBehaviour
         return processedData;
     }
 
-    public async void SetPlayerChips(int userID, int newChipAmount)
+    public async void SetPlayerChips(int userID, int newChipAmount, int connectionID)
     {
+        serverBehaviour.SendDataToClient(connectionID, "setNewChips", 1, _intData: new uint[1]{(uint)newChipAmount});
         SingleInt success = await GetRequest<SingleInt>($"poker.php?behaviour=2&UserID={userID}&NewAmount={newChipAmount}");
         if(success.value == 0) Debug.LogWarning("error setting chips");
     }
@@ -135,6 +125,27 @@ public class GetRequests : MonoBehaviour
             connectedUsers.Add(userInfo.userID, userInfo);
             string[] userInfoArray = new string[5] { userInfo.userID.ToString(), userInfo.Username, userInfo.Email, userInfo.Country, userInfo.DateOfBirth };
             serverBehaviour.SendDataToClient(args.Item1, "loginUser", 1, _stringData: userInfoArray);
+        };
+
+        getRequests["registerUser"] = async (args) =>
+        {
+            string _username = args.Item3[0];
+            string _password = args.Item3[1];
+            string _email = args.Item3[2];
+            string _country = args.Item3[3];
+
+            LoginResponse response = await GetRequest<LoginResponse>($"register_user.php?User={_username}&Email={_email}&Pass={MD5Helper.EncryptToMD5(_password)}&Country={_country}");
+            if (!response.success) 
+            { 
+                Debug.Log($"Registration failed: {response.message}"); 
+                serverBehaviour.SendDataToClient(args.Item1, "registerUser", 0, _stringData: new string[1]{response.message});
+            }
+            else
+            {
+                serverBehaviour.SendDataToClient(args.Item1, "registerUser", 1, _stringData: new string[1]{response.message});
+            }
+
+
         };
 
         //Gets match ID back

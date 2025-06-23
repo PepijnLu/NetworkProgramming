@@ -98,7 +98,7 @@ public class PokerServer : MonoBehaviour
             //Update remaining player chips in database
             foreach(PokerPlayer _pokerPlayer in pokerMatch.bettingPlayers)
             {
-                getRequests.SetPlayerChips(_pokerPlayer.userID, _pokerPlayer.userChips);
+                getRequests.SetPlayerChips(_pokerPlayer.userID, _pokerPlayer.userChips, _pokerPlayer.connectionID);
             }
 
             Debug.Log("Updated chips in databse");
@@ -154,17 +154,17 @@ public class PokerServer : MonoBehaviour
         _pokerMatch.waitingForPlayersComplete = false;
         getRequests.setupMatches.Remove(matchID);
 
-        for(int i = _pokerMatch.connectedPlayers.Count - 1; i >= 0; i--)
-        {
-            if((!_pokerMatch.connectedPlayers[i].joiningNextRound) || (_pokerMatch.connectedPlayers[i].userChips == 0))
-            {
-                _pokerMatch.connectedPlayers.RemoveAt(i);
-                await getRequests.RunTask(0, "leaveMatch", new uint[2]{(uint)_pokerMatch.connectedPlayers[i].userID, matchID});
-            }
-        }
+        // for(int i = _pokerMatch.connectedPlayers.Count - 1; i >= 0; i--)
+        // {
+        //     if((!_pokerMatch.connectedPlayers[i].joiningNextRound) || (_pokerMatch.connectedPlayers[i].userChips == 0))
+        //     {
+        //         _pokerMatch.connectedPlayers.RemoveAt(i);
+        //         await getRequests.RunTask(0, "leaveMatch", new uint[2]{(uint)_pokerMatch.connectedPlayers[i].userID, matchID});
+        //     }
+        // }
 
-        if(_pokerMatch.connectedPlayers.Count <= 1)
-        {
+        //if(_pokerMatch.connectedPlayers.Count <= 1)
+        //{
             //Abandon match
             foreach(PokerPlayer _player in _pokerMatch.connectedPlayers)
             {
@@ -175,11 +175,11 @@ public class PokerServer : MonoBehaviour
 
             //Delete entry
             await getRequests.RunTask(0, "deleteMatch", new uint[1]{matchID});
-        }
-        else
-        {
-            StartMatch(matchID);
-        }
+        //}
+        //else
+        //{
+            //StartMatch(matchID);
+        //}
 
     }
 

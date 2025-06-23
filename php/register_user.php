@@ -1,6 +1,7 @@
 <?php
 include_once "db.php";
 
+session_start();
 header('Content-Type: application/json');
 RegisterUser();
 
@@ -13,7 +14,7 @@ function RegisterUser()
 
     if(ValidateCredentials($username, $email))
     {
-        InsertUser($username, $email, $pass, $country, $dob);
+        InsertUser($username, $email, $pass, $country);
         $output = [
             'success' => true,
             'message' => 'User registered'
@@ -51,10 +52,9 @@ function ValidateCredentials($username, $email)
     return true;
 }
 
-function InsertUser($username, $email, $pass, $country, $dob)
+function InsertUser($username, $email, $pass, $country)
 {
     global $mysqli;
-    $phpTimeStamp = (strtotime($dob));
     $insertUser = "INSERT INTO Users(Username, Email, Pass, Country) VALUES ('$username','$email', MD5('$pass'), '$country')"; 
 
     if (!($result = $mysqli->query($insertUser)))

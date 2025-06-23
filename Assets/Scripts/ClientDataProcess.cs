@@ -31,17 +31,30 @@ public class ClientDataProcess : MonoBehaviour
                     Username = stringData[1],
                     Email = stringData[2],
                     Country = stringData[3],
-                    DateOfBirth = stringData[4]
                 };
                 //Disable buttons and show user info
                 UIManager.instance.ToggleUIElement("LoginScreen", false);
                 UIManager.instance.ToggleUIElement("UserInfo", true);
-                UIManager.instance.DisplayUserInfo(stringData[1], stringData[2], stringData[3], stringData[4]);
+                UIManager.instance.DisplayUserInfo(stringData[1], stringData[2], stringData[3]);
             }
             else
             {
                 //Login failed
+                StartCoroutine(UIManager.instance.ShowTextForSeconds("LoginError", stringData[0], 2));
                 Debug.Log($"Login failed: {stringData[0]}");
+            }
+        };
+
+        dataProcessing["registerUser"] = (success, intData, stringData) =>
+        {
+            if(success == 1)
+            {
+                UIManager.instance.ToggleUIElement("RegisterScreen", false);
+                UIManager.instance.ToggleUIElement("LoginScreen", true);
+            }
+            else
+            {
+
             }
         };
 
@@ -161,6 +174,11 @@ public class ClientDataProcess : MonoBehaviour
                 }
                 else pokerClient.currentMatchBet = newBetAmount;
 
+                if(intData[0] == userInfo.userID)
+                {
+                    pokerClient.userBet = (int)intData[1];
+                }
+
                 //Do UI shit
                 int playerTurnOrder = pokerClient.playersByUserID[intData[0]].orderInTurn + 1;
                 Debug.Log($"Trying to set bets for userID: {intData[0]}, order in turn {playerTurnOrder}, betAmount: {intData[1]}");
@@ -209,8 +227,7 @@ public class ClientDataProcess : MonoBehaviour
             }
             else if(newStatus == "toUserInfo")
             {
-                UIManager.instance.ToggleUIElement("PokerScreen", false);
-                UIManager.instance.ToggleUIElement("UserInfo", true);
+                pokerClient.ResetMatchClient();
             }
             else
             {
@@ -224,6 +241,11 @@ public class ClientDataProcess : MonoBehaviour
         dataProcessing["disableLeaveButton"] = (success, intData, stringData) =>
         {
             UIManager.instance.GetUIElementFromDict("LeaveButton").SetActive(false);
+        }; 
+
+        dataProcessing["setNewChips"] = (success, intData, stringData) =>
+        {
+            pokerClient.userChips = (int)intData[0];
         }; 
 
     }

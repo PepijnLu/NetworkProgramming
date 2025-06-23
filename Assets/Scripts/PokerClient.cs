@@ -15,6 +15,7 @@ public class PokerClient : MonoBehaviour
     public bool joiningNextRound;
     public int currentMatchBet;
     public int userChips;
+    public int userStartingChips;
     public int userBet;
     public int raiseBetAmount;
     GameObject instantiatedRiver;
@@ -46,14 +47,17 @@ public class PokerClient : MonoBehaviour
         if(!isYourTurn) return;
 
         int betAmount = 0;
+        int newMatchBet = 0;
 
         if(_action == 2)
         {
             betAmount = currentMatchBet - userBet;
+            newMatchBet = currentMatchBet;
         }
         else if (_action == 3)
         {
-            betAmount = raiseBetAmount;
+            betAmount = raiseBetAmount - userBet;
+            newMatchBet = raiseBetAmount;
         }
 
         if(betAmount > userChips)
@@ -62,7 +66,7 @@ public class PokerClient : MonoBehaviour
             return;
         }
 
-        if((betAmount < currentMatchBet + 20) && (_action == 3))
+        if((raiseBetAmount < currentMatchBet + 20) && (_action == 3))
         {
             Debug.Log("Cannot bet less than current bet + minimal raise amount of 20");
             return;
@@ -71,14 +75,13 @@ public class PokerClient : MonoBehaviour
         int userID = clientDataProcess.userInfo.userID;
         int matchID = userMatchID;
 
-        userBet = betAmount;
         userChips -= betAmount;
 
         UIManager.instance.GetTextElementFromDict("YourChips").text = $"Chips: {userChips}";
         EndPlayerTurn();
 
         ClientBehaviour.instance.SendInt(new uint[3]{(uint)userID, (uint)matchID, (uint)userChips}, "setUserChips");
-        ClientBehaviour.instance.SendInt(new uint[4]{(uint)userID, (uint)matchID, (uint)_action, (uint)betAmount}, "playTurn");
+        ClientBehaviour.instance.SendInt(new uint[4]{(uint)userID, (uint)matchID, (uint)_action, (uint)newMatchBet}, "playTurn");
     }
 
     public void StartPokerRound()
@@ -89,6 +92,7 @@ public class PokerClient : MonoBehaviour
         {
             sharedCardTransforms.Add(instantiatedRiver.transform.GetChild(i));
         }
+        userStartingChips = userChips;
     }
 
     public void EndPlayerTurn()
@@ -119,14 +123,17 @@ public class PokerClient : MonoBehaviour
     }
 
     //Runs on client
-    public void ResetMatchClient(bool _disconnect)
+    public void ResetMatchClient()
     {
         //Destroy river
         if(instantiatedRiver != null) Destroy(instantiatedRiver);
         //Destroy hand cards
         if(pokerHandC1Transform.GetChild(0) != null) Destroy(pokerHandC1Transform.GetChild(0).gameObject);
-        if(pokerHandC1Transform.GetChild(1) != null) Destroy(pokerHandC1Transform.GetChild(1).gameObject);
+        if(pokerHandC2Transform.GetChild(0) != null) Destroy(pokerHandC2Transform.GetChild(0).gameObject);
 
-        //Set bets to 0
+        UIManager.instance.ToggleUIElement("PokerScreen", false);
+        UIManager.instance.ToggleUIElement("GameOver", true);
+        UIManager.instance.GetTextElementFromDict("GameScore").text = $"Score: {userChips - userStartingChips}";
+        
     }
 }

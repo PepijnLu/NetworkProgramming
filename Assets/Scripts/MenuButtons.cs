@@ -1,3 +1,4 @@
+using System.Runtime.Serialization;
 using TMPro;
 using UnityEngine;
 
@@ -40,7 +41,8 @@ public class MenuButtons : MonoBehaviour
         if(!emailInput.Contains("@") || !emailInput.Contains(".")) { Debug.Log("Invalid Email"); return; }
         if(countryInput == "") { Debug.Log("No country selected"); return; }
 
-        //GetRequests.instance.RegisterUser(usernameInput, passwordInput, emailInput, countryInput);
+        //username, password, email, country
+        ClientBehaviour.instance.SendString(new string[4]{usernameInput, MD5Helper.EncryptToMD5(passwordInput), emailInput, countryInput}, "registerUser");
     }
 
     public void FindMatch()
@@ -67,7 +69,7 @@ public class MenuButtons : MonoBehaviour
     public void LeaveMatch()
     {
         ClientBehaviour.instance.SendInt(new uint[2]{(uint)ClientBehaviour.instance.GetUserInfo().userID, (uint)pokerClient.userMatchID}, "leaveMatch");
-        pokerClient.ResetMatchClient(true);
+        pokerClient.ResetMatchClient();
         UIManager.instance.ToggleUIElement("Lobby", false);
         UIManager.instance.ToggleUIElement("Matchmaking", false);
         UIManager.instance.ToggleUIElement("UserInfo", true);

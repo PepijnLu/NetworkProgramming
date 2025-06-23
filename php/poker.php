@@ -27,6 +27,11 @@ if ($behaviour == 4)
     DeleteMatch();
 }
 
+if ($behaviour == 5) 
+{
+    FetchTop5UserScores();
+}
+
 function FetchCurrentChips()
 {
     global $mysqli;
@@ -71,6 +76,20 @@ function DeleteMatch()
     $matchID = $_GET["MatchID"];
 
     $mysqli->query("DELETE FROM poker_match WHERE GameID = '$matchID'");
+}
+
+function FetchTop5UserScores()
+{
+    global $mysqli;
+
+    $userID = $_GET["UserID"];
+    $top5query = "SELECT Score FROM Scores WHERE UserID = '$userID' ORDER BY Score DESC LIMIT 5";
+    $result = $mysqli->query($top5query);
+
+    $scores = [];
+    while ($row = $result->fetch_assoc()) {
+        $scores[] = $row['Score'];
+    }
 }
 
 ?>

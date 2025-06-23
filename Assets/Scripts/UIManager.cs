@@ -33,12 +33,11 @@ public class UIManager : MonoBehaviour
         }  
     }
 
-    public void DisplayUserInfo(string _username, string _email, string _country, string _dob)
+    public void DisplayUserInfo(string _username, string _email, string _country)
     {
         GetTextElementFromDict("INFO_Username").text = _username;
         GetTextElementFromDict("INFO_Email").text = _email;
         GetTextElementFromDict("INFO_Country").text = _country;
-        GetTextElementFromDict("INFO_DoB").text = _dob;
     }
 
     public GameObject GetUIElementFromDict(string _element)
@@ -65,5 +64,14 @@ public class UIManager : MonoBehaviour
     public IEnumerator HandleNotEnoughChips()
     {
         yield return null;
+    }
+
+    public IEnumerator ShowTextForSeconds(string _element, string _text, float duration)
+    {
+        TextMeshProUGUI _tmpro =  GetTextElementFromDict(_element);
+        _tmpro.text = _text;
+        yield return new WaitForSeconds(duration);
+        _tmpro.text = "";
+
     }
 }

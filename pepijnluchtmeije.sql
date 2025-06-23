@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost
--- Gegenereerd op: 23 jun 2025 om 12:48
+-- Gegenereerd op: 23 jun 2025 om 16:09
 -- Serverversie: 10.11.9-MariaDB
 -- PHP-versie: 8.2.28
 
@@ -38,8 +38,8 @@ CREATE TABLE `player_info` (
 --
 
 INSERT INTO `player_info` (`UserID`, `TotalChips`, `FreeChipCooldown`) VALUES
-(1, 660, '01:24:20'),
-(18, 540, '01:24:24');
+(1, 1320, '01:24:20'),
+(18, 1540, '01:24:24');
 
 -- --------------------------------------------------------
 
@@ -51,13 +51,6 @@ CREATE TABLE `poker_match` (
   `GameID` int(11) DEFAULT NULL,
   `PlayerCount` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci;
-
---
--- Gegevens worden geëxporteerd voor tabel `poker_match`
---
-
-INSERT INTO `poker_match` (`GameID`, `PlayerCount`) VALUES
-(1, 1);
 
 -- --------------------------------------------------------
 
@@ -71,13 +64,6 @@ CREATE TABLE `poker_players` (
   `Waiting` tinyint(1) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci;
 
---
--- Gegevens worden geëxporteerd voor tabel `poker_players`
---
-
-INSERT INTO `poker_players` (`UserID`, `MatchID`, `Waiting`) VALUES
-(1, 1, 1);
-
 -- --------------------------------------------------------
 
 --
@@ -90,6 +76,22 @@ CREATE TABLE `poker_scores` (
   `Score` int(11) DEFAULT NULL,
   `ScoredAt` timestamp NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci;
+
+--
+-- Gegevens worden geëxporteerd voor tabel `poker_scores`
+--
+
+INSERT INTO `poker_scores` (`ScoreID`, `UserID`, `Score`, `ScoredAt`) VALUES
+(1, 18, 1700, NULL),
+(2, 18, 2200, NULL),
+(3, 18, 2500, NULL),
+(4, 18, 900, NULL),
+(5, 18, 1200, NULL),
+(6, 1, 1500, NULL),
+(7, 1, 2000, NULL),
+(8, 1, 1600, NULL),
+(9, 1, 400, NULL),
+(10, 1, 2500, NULL);
 
 -- --------------------------------------------------------
 
@@ -198,19 +200,19 @@ ALTER TABLE `Users`
 -- AUTO_INCREMENT voor een tabel `poker_scores`
 --
 ALTER TABLE `poker_scores`
-  MODIFY `ScoreID` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `ScoreID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
 
 --
 -- AUTO_INCREMENT voor een tabel `Scores`
 --
 ALTER TABLE `Scores`
-  MODIFY `ID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=56;
+  MODIFY `ID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=66;
 
 --
 -- AUTO_INCREMENT voor een tabel `Users`
 --
 ALTER TABLE `Users`
-  MODIFY `ID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=30;
+  MODIFY `ID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=31;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
