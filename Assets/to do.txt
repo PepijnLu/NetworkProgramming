@@ -2,7 +2,7 @@
 
 -game needs to be able to end and start again
 -option to leave game / not join the next one
--both players can call once too much on showdown round
+-both players can call once too much on showdown round (hopefully fixed)
 -ui for wrong password etc
 -user chips are set instead of modified
 
@@ -13,5 +13,5 @@ worries for later:
 -if big blind calls (checks) on r1, small blind gets to check again (does work if small blind raises)
 -onapplicationquit = fold, leave, cleanup
 -registering
-
+-joining mid game shenanigans
 

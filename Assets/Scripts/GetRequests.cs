@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using TMPro;
 using System;
-using UnityEditor.Rendering;
 
 public class GetRequests : MonoBehaviour
 {
@@ -524,11 +523,8 @@ public class GetRequests : MonoBehaviour
                 }
                 else if(pokerMatch.gameState == GAME_STATE.SHOWDOWN)
                 {
-                    if (pokerMatch.lastRaiseUserID == userIDOfNextPlayer)
-                    {
-                        pokerServer.EndPokerRound(pokerMatch, matchID);
-                        return;
-                    }
+                    pokerServer.EndPokerRound(pokerMatch, matchID);
+                    return;
                 }
                 else
                 {
