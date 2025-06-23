@@ -57,52 +57,6 @@ public class GetRequests : MonoBehaviour
 
     }
 
-    // public async Task AwaitMatchInput()
-    // {
-    //     //Wait until its your players turn
-    //     if((!TicTacToe.instance.isCrosses && TicTacToe.instance.firstRound) || (!TicTacToe.instance.firstRound))
-    //     {
-    //         SingleInt isPlayersTurn = new();
-    //         while (isPlayersTurn.value == 0)
-    //         {
-    //             Debug.Log("Await opponents input");
-    //             roundText.text = "Await opponents input";
-    //             isPlayersTurn = await GetRequest<SingleInt>($"play_tictactoe.php?behaviour=1");
-    //             await Task.Delay(500); // Wait .5 second
-    //         }
-
-    //         //Process other players input
-    //         SingleString otherPlayersInput = new();
-    //         while (!ticTacToeOptions.Contains(otherPlayersInput.result))
-    //         {
-    //             otherPlayersInput = await GetRequest<SingleString>($"play_tictactoe.php?behaviour=2");
-    //             Debug.Log($"Processing opponents input: {otherPlayersInput.result}");
-    //             roundText.text = "Processing opponents input";
-    //             await Task.Delay(500); // Wait .5 second
-    //         }
-
-    //         //Process the input in game
-    //         Debug.Log("Opponents input processed");
-    //         roundText.text = "Opponents input processed";
-    //         TicTacToe.instance.ProcessOthersInput(otherPlayersInput.result);
-    //     }
-
-    //     if(TicTacToe.instance.firstRound) TicTacToe.instance.firstRound = false;
-
-    //     //Now your turn
-    //     Debug.Log("Your turn");
-    //     roundText.text = "Awaiting  your input";
-    //     TicTacToe.instance.isPlayersTurn = true;
-    // }
-
-    // public async Task InputAction(string _position)
-    // {
-    //     SingleString inputAction = await GetRequest<SingleString>($"play_tictactoe.php?behaviour=3&Option={_position}");
-    //     if(!ticTacToeOptions.Contains(inputAction.result)) {Debug.LogError("Couldnt set position"); return;}
-    //     TicTacToe.instance.isPlayersTurn = false;
-    //     _ = AwaitMatchInput();
-    // }
-
     public async Task<T> GetRequest<T>(string _request, bool returnData = true)
     {
         string request = baseUrl + _request;
@@ -138,30 +92,13 @@ public class GetRequests : MonoBehaviour
 
     public async void SetPlayerChips(int userID, int newChipAmount)
     {
-        SingleInt success = await GetRequest<SingleInt>($"poker?behaviour=2&UserID={userID}&NewAmount={newChipAmount}");
+        SingleInt success = await GetRequest<SingleInt>($"poker.php?behaviour=2&UserID={userID}&NewAmount={newChipAmount}");
         if(success.value == 0) Debug.LogWarning("error setting chips");
     }
 
     void InstantiateDictionary()
     {
         getRequests = new();
-        getRequests["debugInt"] = async (args) =>
-        {
-            uint[] intData = args.Item2;
-            foreach (uint _uint in intData)
-            {
-                Debug.Log($"Received int: {_uint}");
-            }
-        };
-
-        getRequests["debugString"] = async (args) =>
-        {
-            string[] stringData = args.Item3;
-            foreach (string _string in stringData)
-            {
-                Debug.Log($"Received string: {_string}");
-            }
-        };
 
         getRequests["loginUser"] = async (args) =>
         {
@@ -218,7 +155,7 @@ public class GetRequests : MonoBehaviour
                 connectionID = args.Item1
             };
             //playersInMatches[(uint)matchFound.value].Add(newPlayer);  
-            pokerMatches[(uint)matchFound.value].playersInMatch.Add(newPlayer);
+            pokerMatches[(uint)matchFound.value].connectedPlayers.Add(newPlayer);
 
 
             uint[] matchID = new uint[2] { (uint)matchFound.value, 0 };
@@ -230,7 +167,7 @@ public class GetRequests : MonoBehaviour
                 await RunTask(args.Item1, "waitForPlayers", matchID);
                 if (!setupMatches.Contains(matchID[0]))
                 {
-                    foreach(PokerPlayer _player in pokerMatches[(uint)matchFound.value].playersInMatch)
+                    foreach(PokerPlayer _player in pokerMatches[(uint)matchFound.value].connectedPlayers)
                     {
                         serverBehaviour.SendDataToClient(_player.connectionID, "setLobbyStatus", 1, _stringData: new string[1] { "Waiting for players..." });
                     }
@@ -242,16 +179,23 @@ public class GetRequests : MonoBehaviour
         {
             uint matchID = args.Item2[0];
             if (setupMatches.Contains(matchID) && args.Item2[1] == 0) return;
+            if(pokerMatches[matchID].waitingForPlayersComplete) return;
             setupMatches.Add(matchID);
             //Check if all players are connected (5 means ready to start)
             SingleInt waitForPlayers = new();
             waitForPlayers = await GetRequest<SingleInt>($"find_match.php?behaviour=1&MatchID={matchID}&connPlayers={waitForPlayers.value2}");
 
+            Debug.Log($"Waiting: totalPlayersInMatch: {waitForPlayers.value3}, connectedPlayers: {waitForPlayers.value2}");
+
             if(waitForPlayers.value2 < 2)
             {
                 await Task.Delay(1000);
-                await RunTask(args.Item1, "waitForPlayers", new uint[2] { matchID, 1 });
                 Debug.Log($"Less than 2 players in match: {matchID}");
+                foreach(PokerPlayer _player in pokerMatches[matchID].connectedPlayers)
+                {
+                    serverBehaviour.SendDataToClient(_player.connectionID, "setLobbyStatus", 1, _stringData: new string[1] {$"FindingPlayers"});
+                }
+                await RunTask(args.Item1, "waitForPlayers", new uint[2] { matchID, 1 });
                 return;
             }
 
@@ -277,9 +221,11 @@ public class GetRequests : MonoBehaviour
                     int tenSecondTimer = 0;
                     while (tenSecondTimer < 10)
                     {
+                        if(pokerMatches[matchID].waitingForPlayersComplete) return;
                         //Change timer
 
-                        foreach(PokerPlayer _player in pokerMatches[matchID].playersInMatch)
+                        Debug.Log("Updating 10 second timer");
+                        foreach(PokerPlayer _player in pokerMatches[matchID].connectedPlayers)
                         {
                             serverBehaviour.SendDataToClient(_player.connectionID, "setLobbyStatus", 1, _stringData: new string[1] { $"Starting in: {(10 - tenSecondTimer)}" });
                         }
@@ -287,21 +233,23 @@ public class GetRequests : MonoBehaviour
                         if(tenSecondTimer == 7)
                         {
                             //Disable leave button
-                            foreach(PokerPlayer _player in pokerMatches[matchID].playersInMatch)
+                            pokerMatches[matchID].playersInRound.Clear();
+                            foreach(PokerPlayer _player in pokerMatches[matchID].connectedPlayers)
                             {
+                                pokerMatches[matchID].playersInRound.Add(_player);
                                 serverBehaviour.SendDataToClient(_player.connectionID, "disableLeaveButton", 1, _intData: new uint[0] { });
                             }
                         }
 
                         await Task.Delay(1000);
-                        tenSecondTimer++;
 
                         waitForPlayers = await GetRequest<SingleInt>($"find_match.php?behaviour=1&MatchID={matchID}&connPlayers={waitForPlayers.value}");
-                        if (waitForPlayers.value != 2) 
+                        if ((waitForPlayers.value != 2) || (waitForPlayers.value2 < 2)) 
                         {
                             Debug.Log("Restarting timer");
                             await RunTask(args.Item1, "waitForPlayers", new uint[2] { matchID, 1 });
                         }
+                        tenSecondTimer++;
                     }
 
                     //Setup match
@@ -319,18 +267,22 @@ public class GetRequests : MonoBehaviour
                     int fiveSecondTimer = 0;
                     while (fiveSecondTimer < 5)
                     {
+                        if(pokerMatches[matchID].waitingForPlayersComplete) return;
                         //Check if no one left
 
                         if(fiveSecondTimer == 2)
                         {
                             //Disable leave button
-                            foreach(PokerPlayer _player in pokerMatches[matchID].playersInMatch)
+                            pokerMatches[matchID].playersInRound.Clear();
+                            foreach(PokerPlayer _player in pokerMatches[matchID].connectedPlayers)
                             {
+                                pokerMatches[matchID].playersInRound.Add(_player);
                                 serverBehaviour.SendDataToClient(_player.connectionID, "disableLeaveButton", 1, _intData: new uint[0] { });
                             }
                         }
                         //Change timer
-                        foreach(PokerPlayer _player in pokerMatches[matchID].playersInMatch)
+                        Debug.Log("Updating 5 second timer");
+                        foreach(PokerPlayer _player in pokerMatches[matchID].connectedPlayers)
                         {
                             serverBehaviour.SendDataToClient(_player.connectionID, "setLobbyStatus", 1, _stringData: new string[1] { $"Starting in: {(5 - fiveSecondTimer)}" });
                         }
@@ -351,9 +303,10 @@ public class GetRequests : MonoBehaviour
             Debug.Log("Setup match!");
 
             uint matchID = args.Item2[0];
+            pokerMatches[matchID].waitingForPlayersComplete = true;
 
             //Initialize list of poker players
-            List<PokerPlayer> connectedPlayers = pokerMatches[matchID].playersInMatch;
+            List<PokerPlayer> connectedPlayers = pokerMatches[matchID].playersInRound;
 
             foreach (PokerPlayer pokerPlayer in connectedPlayers)
             {
@@ -403,8 +356,13 @@ public class GetRequests : MonoBehaviour
                 (connectedPlayers[i], connectedPlayers[j]) = (connectedPlayers[j], connectedPlayers[i]); // swap
             }
 
-            pokerMatches[matchID].playersInMatch = connectedPlayers;
+            pokerMatches[matchID].playersInRound = connectedPlayers;
             pokerMatches[matchID].bettingPlayers = connectedPlayers;
+
+            foreach (PokerPlayer _player in connectedPlayers)
+            {
+                SingleInt setWaiting = await GetRequest<SingleInt>($"poker.php?behaviour=4&UserID={_player.userID}&MatchID={matchID}&Waiting={0}");
+            }
 
             for (int i = 0; i < connectedPlayers.Count; i++)
             {
@@ -483,7 +441,7 @@ public class GetRequests : MonoBehaviour
                 case 1:
                     Debug.Log("Turn: Fold");
                     pokerMatch.bettingPlayers.Remove(pokerPlayer);
-                    foreach (PokerPlayer _player in pokerMatch.playersInMatch)
+                    foreach (PokerPlayer _player in pokerMatch.playersInRound)
                     {
                         //UserID, betAmount
                         serverBehaviour.SendDataToClient(_player.connectionID, "setBet", 1, _intData: new uint[2] { (uint)pokerPlayer.userID, 0 });
@@ -497,7 +455,7 @@ public class GetRequests : MonoBehaviour
                 //call
                 case 2:
                     Debug.Log("Turn: Call");
-                    foreach (PokerPlayer _player in pokerMatch.playersInMatch)
+                    foreach (PokerPlayer _player in pokerMatch.playersInRound)
                     {
                         //UserID, betAmount
                         serverBehaviour.SendDataToClient(_player.connectionID, "setBet", 1, _intData: new uint[2] { (uint)pokerPlayer.userID, (uint)pokerMatch.currentBet });
@@ -507,7 +465,7 @@ public class GetRequests : MonoBehaviour
                 case 3:
                     Debug.Log("Turn: Raise");
                     uint newBet = args.Item2[3];
-                    foreach (PokerPlayer _player in pokerMatch.playersInMatch)
+                    foreach (PokerPlayer _player in pokerMatch.playersInRound)
                     {
                         //UserID, betAmount
                         serverBehaviour.SendDataToClient(_player.connectionID, "setBet", 1, _intData: new uint[2] { (uint)pokerPlayer.userID, newBet });
@@ -519,6 +477,7 @@ public class GetRequests : MonoBehaviour
                     Debug.LogError($"Action non existant: ID: {args.Item2[2]}");
                     break;
             }
+            pokerPlayer.betAmount = (int)args.Item2[3];
             Debug.Log("User input handling complete");
             //Check for round end / change game state
 
@@ -534,7 +493,7 @@ public class GetRequests : MonoBehaviour
                 //Debug.Log($"cond1: {pokerMatch.gameState} , {GAME_STATE.PRE_FLOP} - cond2: {pokerMatch.playersInMatch.IndexOf(nextPlayer)} , {1} - cond3: {pokerMatches[matchID].currentBet} , {40}");
                 if(pokerMatch.gameState == GAME_STATE.PRE_FLOP)
                 {
-                    if(pokerMatch.playersInMatch.IndexOf(nextPlayer) == 1 && (pokerMatches[matchID].currentBet == 40) && (!pokerMatch.bigBlindReraised) && (nextPlayer.betAmount == pokerMatches[matchID].currentBet))
+                    if(pokerMatch.playersInRound.IndexOf(nextPlayer) == 1 && (pokerMatches[matchID].currentBet == 40) && (!pokerMatch.bigBlindReraised) && (nextPlayer.betAmount == pokerMatches[matchID].currentBet))
                     {
                         //big blind gets to reraise
                         pokerMatch.lastRaiseUserID = userIDOfNextPlayer;
@@ -569,23 +528,23 @@ public class GetRequests : MonoBehaviour
             {
                 //Move to the next round
                 pokerMatch.gameState = (GAME_STATE)((int)pokerMatch.gameState + 1);
-                pokerMatch.lastRaiseUserID = pokerMatch.playersInMatch[0].userID;
-                pokerMatch.currentTurnUserID = pokerMatch.playersInMatch[0].userID;
+                pokerMatch.lastRaiseUserID = pokerMatch.playersInRound[0].userID;
+                pokerMatch.currentTurnUserID = pokerMatch.playersInRound[0].userID;
                 switch (pokerMatch.gameState)
                 {
                     //Reveal cards 1,2,3
                     case GAME_STATE.FLOP:
-                        foreach (PokerPlayer _player in pokerMatch.playersInMatch)
+                        foreach (PokerPlayer _player in pokerMatch.playersInRound)
                         {
                             //cardNumber, cardID
                             serverBehaviour.SendDataToClient(_player.connectionID, "getSharedCard", 1, _intData: new uint[2] { 1,  (uint)pokerMatches[matchID].matchDeck[0].cardID});
                         }
-                        foreach (PokerPlayer _player in pokerMatch.playersInMatch)
+                        foreach (PokerPlayer _player in pokerMatch.playersInRound)
                         {
                             //cardNumber, cardID
                             serverBehaviour.SendDataToClient(_player.connectionID, "getSharedCard", 1, _intData: new uint[2] { 2,  (uint)pokerMatches[matchID].matchDeck[1].cardID});
                         }
-                        foreach (PokerPlayer _player in pokerMatch.playersInMatch)
+                        foreach (PokerPlayer _player in pokerMatch.playersInRound)
                         {
                             //cardNumber, cardID
                             serverBehaviour.SendDataToClient(_player.connectionID, "getSharedCard", 1, _intData: new uint[2] { 3,  (uint)pokerMatches[matchID].matchDeck[2].cardID});
@@ -594,7 +553,7 @@ public class GetRequests : MonoBehaviour
                         break;
                     //Reveal card 4
                     case GAME_STATE.TURN:
-                        foreach (PokerPlayer _player in pokerMatch.playersInMatch)
+                        foreach (PokerPlayer _player in pokerMatch.playersInRound)
                         {
                             //cardNumber, cardID
                             serverBehaviour.SendDataToClient(_player.connectionID, "getSharedCard", 1, _intData: new uint[2] { 4,  (uint)pokerMatches[matchID].matchDeck[3].cardID});
@@ -602,7 +561,7 @@ public class GetRequests : MonoBehaviour
                         break;
                     //Reveal card 5
                     case GAME_STATE.RIVER:
-                        foreach (PokerPlayer _player in pokerMatch.playersInMatch)
+                        foreach (PokerPlayer _player in pokerMatch.playersInRound)
                         {
                             //cardNumber, cardID
                             serverBehaviour.SendDataToClient(_player.connectionID, "getSharedCard", 1, _intData: new uint[2] { 5,  (uint)pokerMatches[matchID].matchDeck[4].cardID});
@@ -612,7 +571,7 @@ public class GetRequests : MonoBehaviour
             }
 
             //Start next turn
-            foreach (PokerPlayer _player in pokerMatch.playersInMatch)
+            foreach (PokerPlayer _player in pokerMatch.playersInRound)
             {
                 //user id of new turn player
                 serverBehaviour.SendDataToClient(_player.connectionID, "startPlayerTurn", 1, _intData: new uint[1] { (uint)pokerMatch.currentTurnUserID });
@@ -639,12 +598,29 @@ public class GetRequests : MonoBehaviour
             pokerMatches[matchID].playersByUserID[userID].userChips = (int)chipAmount;
         };
 
-        //first int is userID
+        //first int is userID, second int is matchID
         getRequests["leaveMatch"] = async (args) =>
         {
             uint userID = args.Item2[0];
+            uint matchID = args.Item2[1];
 
-            SingleInt newUserChipsRequest = await GetRequest<SingleInt>($"poker.php?behaviour=3&UserID={userID}");
+            Debug.Log($"Leave Request for player {userID} in match {matchID}");
+
+            PokerPlayer playerToRemove = null;
+
+            foreach(PokerPlayer _player in pokerMatches[matchID].playersInRound)
+            {
+                if(_player.userID == userID)
+                {
+                    playerToRemove = _player;
+                }
+            }
+
+            if(playerToRemove != null) pokerMatches[matchID].playersInRound.Remove(playerToRemove);
+            
+            SingleInt leaveMatchRequest = await GetRequest<SingleInt>($"poker.php?behaviour=3&UserID={userID}&MatchID={matchID}");
+
+            Debug.Log($"Leave Request for player {userID} in match {matchID} complete");
         };
 
     }

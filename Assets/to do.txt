@@ -1,9 +1,17 @@
--make shit look nice - 30m
--finish setup (blinds and turn order) - 30m
--add gameplay loop - 1h
--cleanup and leaving - 30m
--high score to database (in a single session) - 10m
--current chip amount in database - 5m
--every 24h 1000 free chips - 15m
--fix dob/register - 15m
--put it on a dedicated server - 30m
+-chip text isn't being set in matchmaking screen (hopefully fixed)
+
+-game needs to be able to end and start again
+-option to leave game / not join the next one
+-both players can call once too much on showdown round
+-ui for wrong password etc
+-user chips are set instead of modified
+
+
+
+worries for later:
+-cancel screen pops up too soon, pops up again when you press it quickly
+-if big blind calls (checks) on r1, small blind gets to check again (does work if small blind raises)
+-onapplicationquit = fold, leave, cleanup
+-registering
+
+

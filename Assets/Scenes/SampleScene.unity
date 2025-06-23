@@ -643,6 +643,50 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 127362516}
   m_CullTransparentMesh: 1
+--- !u!1 &131279278
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 131279280}
+  - component: {fileID: 131279279}
+  m_Layer: 0
+  m_Name: PokerHandEvaluator
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &131279279
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 131279278}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0c5c2908e93997748882215bfe6b27e0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!4 &131279280
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 131279278}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 1480.9312, y: 988.02966, z: -13.240797}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &144065619
 GameObject:
   m_ObjectHideFlags: 0
@@ -1289,11 +1333,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7e745c195bb676f49a14fd9b3763c934, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  pokerHandEvaluator: {fileID: 0}
+  pokerHandEvaluator: {fileID: 131279279}
   clientDataProcess: {fileID: 1746426579}
   placeholderRiver: {fileID: 8234647368505591572, guid: 7dd080d1bee82d9459f2cf84790e6c71, type: 3}
-  pokerHandC1Transform: {fileID: 0}
-  pokerHandC2Transform: {fileID: 0}
+  pokerHandC1Transform: {fileID: 220868234}
+  pokerHandC2Transform: {fileID: 1466021931}
   userMatchID: 0
   isYourTurn: 0
   currentMatchBet: 0
@@ -4473,6 +4517,12 @@ MonoBehaviour:
   - {fileID: 853372050}
   - {fileID: 1154907171}
   - {fileID: 886832108}
+  - {fileID: 899876771}
+  - {fileID: 1471210296}
+  - {fileID: 1104786566}
+  - {fileID: 461951940}
+  - {fileID: 2006738906}
+  - {fileID: 2129282912}
 --- !u!1 &695236278
 GameObject:
   m_ObjectHideFlags: 0
@@ -13913,7 +13963,7 @@ GameObject:
   - component: {fileID: 2006738907}
   - component: {fileID: 2006738906}
   m_Layer: 5
-  m_Name: MM_Chips
+  m_Name: LChips
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -14398,7 +14448,7 @@ GameObject:
   - component: {fileID: 2129282913}
   - component: {fileID: 2129282912}
   m_Layer: 5
-  m_Name: MM_Chips
+  m_Name: MMChips
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -14711,3 +14761,4 @@ SceneRoots:
   - {fileID: 1746426580}
   - {fileID: 417453596}
   - {fileID: 227907268}
+  - {fileID: 131279280}

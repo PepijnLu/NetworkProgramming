@@ -60,6 +60,8 @@ public class ClientDataProcess : MonoBehaviour
 
                 UIManager.instance.GetUIElementFromDict("PreMatchSetup").SetActive(false);
                 UIManager.instance.GetUIElementFromDict("Matchmaking").SetActive(true);
+                Debug.Log($"Set player chips to {Poker.instance.userChips}");
+                UIManager.instance.GetTextElementFromDict("MMChips").text = $"Chips: {Poker.instance.userChips}";
                 UIManager.instance.GetUIElementFromDict("LeaveButton").SetActive(true);
                 ClientBehaviour.instance.SendInt(new uint[1]{(uint)ClientBehaviour.instance.GetUserInfo().userID}, "findMatch");
             }
@@ -76,8 +78,6 @@ public class ClientDataProcess : MonoBehaviour
                 UIManager.instance.ToggleUIElement("UserInfo", false);
 
                 //UIManager.instance.GetUIElementFromDict("Lobby").SetActive(true);
-
-                ClientBehaviour.instance.SendInt(new uint[1]{(uint)userInfo.userID}, "setUserChips");
             }
 
         };
@@ -87,6 +87,7 @@ public class ClientDataProcess : MonoBehaviour
             if (success == 1)
             {
                 //Show cards in hand
+                Debug.Log($"Got Cards: {(int)intData[0]}, {(int)intData[1]}");
                 UIManager.instance.ToggleUIElement("PokerScreen", true);
                 Poker.instance.GenerateHand((int)intData[0], (int)intData[1]);
             }
@@ -110,7 +111,7 @@ public class ClientDataProcess : MonoBehaviour
             if (success == 1)
             {
                 UIManager.instance.GetUIElementFromDict("Lobby").SetActive(false);
-                
+
                 Debug.Log($"Setting turn order for user: {(int)intData[1]}");
                 //Set turn order locally
                 PokerPlayer newPlayer = new()
@@ -128,6 +129,7 @@ public class ClientDataProcess : MonoBehaviour
                 if(intData[1] == userInfo.userID)
                 {
                     //Enable 'you' text
+                    ClientBehaviour.instance.SendInt(new uint[3]{(uint)userInfo.userID, (uint)Poker.instance.userMatchID, (uint)Poker.instance.userChips}, "setUserChips");
                     Poker.instance.StartPokerRound();
                     playerIcon.transform.GetChild(1).gameObject.SetActive(true);
                     //Get your current chip amount from database
@@ -197,9 +199,20 @@ public class ClientDataProcess : MonoBehaviour
 
         dataProcessing["setLobbyStatus"] = (success, intData, stringData) =>
         {
-            UIManager.instance.GetUIElementFromDict("Matchmaking").SetActive(false);
-            UIManager.instance.GetUIElementFromDict("Lobby").SetActive(true);
-            UIManager.instance.GetTextElementFromDict("LobbyStatus").text = stringData[0];
+            string newStatus = stringData[0];
+            Debug.Log($"Processing lobby status data: {newStatus}");
+            if(newStatus == "FindingPlayers")
+            {
+                UIManager.instance.GetUIElementFromDict("Matchmaking").SetActive(true);
+                UIManager.instance.GetUIElementFromDict("Lobby").SetActive(false);
+            }
+            else
+            {
+                UIManager.instance.GetUIElementFromDict("Matchmaking").SetActive(false);
+                UIManager.instance.GetUIElementFromDict("Lobby").SetActive(true);
+                UIManager.instance.GetTextElementFromDict("LChips").text = $"Chips: {Poker.instance.userChips}";
+                UIManager.instance.GetTextElementFromDict("LobbyStatus").text = newStatus;
+            }
         };  
 
         dataProcessing["disableLeaveButton"] = (success, intData, stringData) =>

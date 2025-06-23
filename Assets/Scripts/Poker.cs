@@ -24,7 +24,8 @@ public class PokerPlayer
 public class PokerMatch
 {
     public Dictionary<uint, PokerPlayer> playersByUserID = new();
-    public List<PokerPlayer> playersInMatch = new();
+    public List<PokerPlayer> connectedPlayers = new();
+    public List<PokerPlayer> playersInRound = new();
     public List<PokerPlayer> bettingPlayers = new();
     public List<PokerCard> matchDeck = new();
     public int currentTurnUserID;
@@ -32,6 +33,7 @@ public class PokerMatch
     public int lastRaiseUserID;
     public GAME_STATE gameState;
     public bool bigBlindReraised;
+    public bool waitingForPlayersComplete;
 }
 public class Poker : MonoBehaviour
 {
@@ -63,15 +65,12 @@ public class Poker : MonoBehaviour
             pokerCardsDict.Add(_pokerCard.cardID, _pokerCard);
         }
     }
-    // Update is called once per frame
-    void Update()
-    {
-
-    }
 
     //Called from server
     public void EndPokerRound(PokerMatch pokerMatch)
     {
+        Debug.Log("End poker round");
+
         List<PokerPlayer> remainingPlayers = pokerMatch.bettingPlayers;
         List<PokerPlayer> roundWinners = new();
 
@@ -82,11 +81,13 @@ public class Poker : MonoBehaviour
         }
         else if (remainingPlayers.Count == 1)
         {
+            Debug.Log("Onlyt 1 player remaining");
             roundWinners.Add(remainingPlayers[0]);
         }
         else if(remainingPlayers.Count > 1)
         {
             //SHOWDOWN
+            Debug.Log("More than one player remaining");
             int highestHand = 0;
             int highestRelevantRank = 0;
             List<PokerCard> sharedCards = pokerMatch.matchDeck;
@@ -97,8 +98,12 @@ public class Poker : MonoBehaviour
                 playerPlusSharedCards.Add(pokerCardsDict[_player.handCard1]);
                 playerPlusSharedCards.Add(pokerCardsDict[_player.handCard2]);
 
+                Debug.Log("Hand check setup complete");
+
                 PokerHandResult _result = pokerHandEvaluator.EvaluateHand(playerPlusSharedCards);
                 _player.pokerHandResult = _result;
+
+                Debug.Log("Hand check result fetched");
 
                 if(_result.handValue == highestHand)
                 {
@@ -120,11 +125,26 @@ public class Poker : MonoBehaviour
                     highestHand = _result.handValue;
                     roundWinners.Add(_player);
                 }
+                
             }
 
+            Debug.Log("Hand check complete");
+
             //Distribute chips under winners
-            int shareOfBet = pokerMatch.currentBet / roundWinners.Count;
-            foreach(PokerPlayer _pokerPlayer in roundWinners) _pokerPlayer.userChips += shareOfBet;
+            int pool = 0;
+            foreach(PokerPlayer _pokerPlayer in pokerMatch.playersInRound) 
+            {
+                pool += _pokerPlayer.betAmount;
+            }
+            int shareOfBet = pool / roundWinners.Count;
+
+            foreach(PokerPlayer _pokerPlayer in roundWinners) 
+            {
+                Debug.Log($"Winner: {_pokerPlayer.userID} got {shareOfBet}");
+                _pokerPlayer.userChips += shareOfBet;
+            }
+
+            Debug.Log("Chips distrubuted");
 
             //Update remaining player chips in database
             foreach(PokerPlayer _pokerPlayer in pokerMatch.bettingPlayers)
@@ -132,7 +152,10 @@ public class Poker : MonoBehaviour
                 GetRequests.instance.SetPlayerChips(_pokerPlayer.userID, _pokerPlayer.userChips);
             }
 
+            Debug.Log("Updated chips in databse");
+
             //Reset necessary values
+            ResetMatchServer(pokerMatch);
 
             //Start new round
         }
@@ -208,8 +231,11 @@ public class Poker : MonoBehaviour
 
         userBet = betAmount;
         userChips -= betAmount;
+
         UIManager.instance.GetTextElementFromDict("YourChips").text = $"Chips: {userChips}";
         EndPlayerTurn();
+
+        ClientBehaviour.instance.SendInt(new uint[3]{(uint)userID, (uint)matchID, (uint)userChips}, "setUserChips");
         ClientBehaviour.instance.SendInt(new uint[4]{(uint)userID, (uint)matchID, (uint)_action, (uint)betAmount}, "playTurn");
     }
 
@@ -248,5 +274,16 @@ public class Poker : MonoBehaviour
         }
 
         UIManager.instance.GetTextElementFromDict("RaiseBetAmount").text = $"{raiseBetAmount}";
+    }
+
+    //Runs on client
+    public void ResetMatchClient(bool _disconnect)
+    {
+
+    }
+    //Runs on server
+    public void ResetMatchServer(PokerMatch pokerMatch)
+    {
+
     }
 }

@@ -64,7 +64,8 @@ public class MenuButtons : MonoBehaviour
 
     public void LeaveMatch()
     {
-        ClientBehaviour.instance.SendInt(new uint[1]{(uint)ClientBehaviour.instance.GetUserInfo().userID}, "leaveMatch");
+        ClientBehaviour.instance.SendInt(new uint[2]{(uint)ClientBehaviour.instance.GetUserInfo().userID, (uint)Poker.instance.userMatchID}, "leaveMatch");
+        Poker.instance.ResetMatchClient(true);
         UIManager.instance.ToggleUIElement("Lobby", false);
         UIManager.instance.ToggleUIElement("Matchmaking", false);
         UIManager.instance.ToggleUIElement("UserInfo", true);
