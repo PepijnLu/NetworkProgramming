@@ -9,23 +9,19 @@ using UnityEditor.Rendering;
 
 public class GetRequests : MonoBehaviour
 {
-    public static GetRequests instance;
-    [SerializeField] ServerBehaviour serverBehaviour;
-    TextMeshProUGUI roundText;
     Dictionary<int, UserInfo> connectedUsers = new();
-    List<uint> setupMatches = new();
+    [SerializeField] ServerBehaviour serverBehaviour;
+    [SerializeField] PokerServer pokerServer;
+    public List<uint> setupMatches = new();
     private Dictionary<uint, PokerMatch> pokerMatches = new();
+    Dictionary<string, Func<(int _connectionIndex, uint[], string[]), Task>> getRequests;    
 
     [Header("InitialLogin")]
     [SerializeField] int serverID;
     [SerializeField] string password;
     [SerializeField] string baseUrl;
-    [Header("TicTacToe Options")]
-    [SerializeField] List<string> ticTacToeOptions;
-    Dictionary<string, Func<(int _connectionIndex, uint[], string[]), Task>> getRequests;    
     void Awake()
     {
-        instance = this;   
         InstantiateDictionary();
     }
 
@@ -55,6 +51,17 @@ public class GetRequests : MonoBehaviour
 
         Debug.Log($"User registered successfully!");
 
+    }
+
+    public void LogoutUser(int connectionID)
+    {
+        foreach(var kvp in connectedUsers)
+        {
+            if(kvp.Value.connectionID == connectionID)
+            {
+                connectedUsers.Remove(kvp.Key);
+            }
+        }
     }
 
     public async Task<T> GetRequest<T>(string _request, bool returnData = true)
@@ -119,6 +126,7 @@ public class GetRequests : MonoBehaviour
 
             //Get user info
             UserInfo userInfo = await GetRequest<UserInfo>("user_info.php");
+            userInfo.connectionID = args.Item1;
 
             if(connectedUsers.ContainsKey(userInfo.userID))
             {
@@ -233,7 +241,8 @@ public class GetRequests : MonoBehaviour
                         if(tenSecondTimer == 7)
                         {
                             //Disable leave button
-                            pokerMatches[matchID].playersInRound.Clear();
+                            pokerMatches[matchID].playersInRound = new();
+                            Debug.Log("Cleared players in round");
                             foreach(PokerPlayer _player in pokerMatches[matchID].connectedPlayers)
                             {
                                 pokerMatches[matchID].playersInRound.Add(_player);
@@ -273,7 +282,8 @@ public class GetRequests : MonoBehaviour
                         if(fiveSecondTimer == 2)
                         {
                             //Disable leave button
-                            pokerMatches[matchID].playersInRound.Clear();
+                            pokerMatches[matchID].playersInRound = new();
+                            Debug.Log("Cleared players in round");
                             foreach(PokerPlayer _player in pokerMatches[matchID].connectedPlayers)
                             {
                                 pokerMatches[matchID].playersInRound.Add(_player);
@@ -306,17 +316,23 @@ public class GetRequests : MonoBehaviour
             pokerMatches[matchID].waitingForPlayersComplete = true;
 
             //Initialize list of poker players
+            Debug.Log("Players in round: " + pokerMatches[matchID].playersInRound.Count);
             List<PokerPlayer> connectedPlayers = pokerMatches[matchID].playersInRound;
+
+            Debug.Log("Players initialized!");
 
             foreach (PokerPlayer pokerPlayer in connectedPlayers)
             {
                 pokerMatches[matchID].playersByUserID.Add((uint)pokerPlayer.userID, pokerPlayer);
             }
 
-            //Make a deck with enough cards for each player + the shared cards
-            List<PokerCard> deck = Poker.instance.GetShuffledCards(connectedPlayers.Count);
+            Debug.Log("PlayersByUserID populized!");
 
+            //Make a deck with enough cards for each player + the shared cards
+            List<PokerCard> deck = pokerServer.GetShuffledCards(connectedPlayers.Count);
             pokerMatches[matchID].matchDeck = deck;
+
+            Debug.Log("Deck created!");
 
             //Deal cards
 
@@ -359,10 +375,10 @@ public class GetRequests : MonoBehaviour
             pokerMatches[matchID].playersInRound = connectedPlayers;
             pokerMatches[matchID].bettingPlayers = connectedPlayers;
 
-            foreach (PokerPlayer _player in connectedPlayers)
-            {
-                SingleInt setWaiting = await GetRequest<SingleInt>($"poker.php?behaviour=4&UserID={_player.userID}&MatchID={matchID}&Waiting={0}");
-            }
+            // foreach (PokerPlayer _player in connectedPlayers)
+            // {
+            //     SingleInt setWaiting = await GetRequest<SingleInt>($"poker.php?behaviour=4&UserID={_player.userID}&MatchID={matchID}&Waiting={0}");
+            // }
 
             for (int i = 0; i < connectedPlayers.Count; i++)
             {
@@ -382,6 +398,7 @@ public class GetRequests : MonoBehaviour
             Debug.Log("Set game state!");
 
             //small and big blind on server
+            Debug.Log($"Amount of players: {connectedPlayers.Count}");
             connectedPlayers[0].betAmount = 20;
             connectedPlayers[1].betAmount = 40;
 
@@ -448,7 +465,7 @@ public class GetRequests : MonoBehaviour
                     }
                     if (pokerMatch.bettingPlayers.Count <= 1)
                     {
-                        Poker.instance.EndPokerRound(pokerMatch);
+                        pokerServer.EndPokerRound(pokerMatch, matchID);
                         return;
                     }
                     break;
@@ -509,7 +526,7 @@ public class GetRequests : MonoBehaviour
                 {
                     if (pokerMatch.lastRaiseUserID == userIDOfNextPlayer)
                     {
-                        Poker.instance.EndPokerRound(pokerMatch);
+                        pokerServer.EndPokerRound(pokerMatch, matchID);
                         return;
                     }
                 }
@@ -618,9 +635,19 @@ public class GetRequests : MonoBehaviour
 
             if(playerToRemove != null) pokerMatches[matchID].playersInRound.Remove(playerToRemove);
             
-            SingleInt leaveMatchRequest = await GetRequest<SingleInt>($"poker.php?behaviour=3&UserID={userID}&MatchID={matchID}");
+            await GetRequest<SingleInt>($"poker.php?behaviour=3&UserID={userID}&MatchID={matchID}");
 
             Debug.Log($"Leave Request for player {userID} in match {matchID} complete");
+        };
+        //first int is match id
+        getRequests["deleteMatch"] = async (args) =>
+        {
+            uint matchID = args.Item2[0];
+
+            pokerMatches.Remove(matchID);
+            
+            await GetRequest<SingleInt>($"poker.php?behaviour=4&MatchID={matchID}");
+
         };
 
     }

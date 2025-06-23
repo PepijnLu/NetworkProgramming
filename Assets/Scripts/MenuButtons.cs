@@ -3,6 +3,8 @@ using UnityEngine;
 
 public class MenuButtons : MonoBehaviour
 {
+    [SerializeField] PokerClient pokerClient;
+
     public void EnableLoginScreen()
     {
         UIManager.instance.ToggleUIElement("Login/Register", false);
@@ -38,7 +40,7 @@ public class MenuButtons : MonoBehaviour
         if(!emailInput.Contains("@") || !emailInput.Contains(".")) { Debug.Log("Invalid Email"); return; }
         if(countryInput == "") { Debug.Log("No country selected"); return; }
 
-        GetRequests.instance.RegisterUser(usernameInput, passwordInput, emailInput, countryInput);
+        //GetRequests.instance.RegisterUser(usernameInput, passwordInput, emailInput, countryInput);
     }
 
     public void FindMatch()
@@ -54,20 +56,26 @@ public class MenuButtons : MonoBehaviour
 
     public void PlayTurn(int _action)
     {
-        Poker.instance.PlayTurn(_action);
+        pokerClient.PlayTurn(_action);
     }
 
     public void ChangeRaiseAmount(bool _increment)
     {
-        Poker.instance.ChangeRaiseAmount(_increment);
+        pokerClient.ChangeRaiseAmount(_increment);
     }
 
     public void LeaveMatch()
     {
-        ClientBehaviour.instance.SendInt(new uint[2]{(uint)ClientBehaviour.instance.GetUserInfo().userID, (uint)Poker.instance.userMatchID}, "leaveMatch");
-        Poker.instance.ResetMatchClient(true);
+        ClientBehaviour.instance.SendInt(new uint[2]{(uint)ClientBehaviour.instance.GetUserInfo().userID, (uint)pokerClient.userMatchID}, "leaveMatch");
+        pokerClient.ResetMatchClient(true);
         UIManager.instance.ToggleUIElement("Lobby", false);
         UIManager.instance.ToggleUIElement("Matchmaking", false);
         UIManager.instance.ToggleUIElement("UserInfo", true);
+    }
+
+    public void ToggleJoinPreference()
+    {
+        pokerClient.joiningNextRound = !pokerClient.joiningNextRound;
+        UIManager.instance.ToggleUIElement("JoinNextCheck", pokerClient.joiningNextRound);
     }
 }

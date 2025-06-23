@@ -3,8 +3,19 @@ using UnityEngine;
 
 public class PokerServer : MonoBehaviour
 {
+    [SerializeField] Poker _poker;
     [SerializeField] PokerHandEvaluator pokerHandEvaluator;
-    public void EndPokerRound(PokerMatch pokerMatch)
+    Dictionary<int, PokerCard> pokerCardsDict;
+    [SerializeField] List<PokerCard> pokerCards;
+    [SerializeField] GetRequests getRequests;
+    [SerializeField] ServerBehaviour serverBehaviour;
+
+    void Start()
+    {
+        pokerCardsDict = _poker.GetCardDict();
+        pokerCards = _poker.GetPokerCards();
+    }
+    public void EndPokerRound(PokerMatch pokerMatch, uint matchID)
     {
         Debug.Log("End poker round");
 
@@ -32,6 +43,7 @@ public class PokerServer : MonoBehaviour
             {
                 List<PokerCard> playerPlusSharedCards = new();
                 foreach(PokerCard _card in sharedCards) playerPlusSharedCards.Add(_card);
+
                 playerPlusSharedCards.Add(pokerCardsDict[_player.handCard1]);
                 playerPlusSharedCards.Add(pokerCardsDict[_player.handCard2]);
 
@@ -86,16 +98,93 @@ public class PokerServer : MonoBehaviour
             //Update remaining player chips in database
             foreach(PokerPlayer _pokerPlayer in pokerMatch.bettingPlayers)
             {
-                GetRequests.instance.SetPlayerChips(_pokerPlayer.userID, _pokerPlayer.userChips);
+                getRequests.SetPlayerChips(_pokerPlayer.userID, _pokerPlayer.userChips);
             }
 
             Debug.Log("Updated chips in databse");
 
             //Reset necessary values
-            ResetMatchServer(pokerMatch);
+            EndMatch(pokerMatch, matchID);
 
             //Start new round
         }
+
         Debug.Log("Round ended");
+    }
+
+    public List<PokerCard> GetShuffledCards(int _playerCount)
+    {
+        Debug.Log("Try get shuffled cards");
+
+        List<PokerCard> deck = new();
+        foreach (PokerCard pokerCard in pokerCards)
+        {
+            deck.Add(pokerCard);
+        }
+
+        Debug.Log("Whole deck created");
+
+        for (int i = deck.Count - 1; i > 0; i--)
+        {
+            int j = UnityEngine.Random.Range(0, i + 1);
+            (deck[i], deck[j]) = (deck[j], deck[i]); // swap
+        }
+
+        Debug.Log("Deck shuffled");
+
+        int cardsToKeep = 5 + (_playerCount * 2);
+        deck.RemoveRange(cardsToKeep, deck.Count - cardsToKeep);
+
+        Debug.Log("Deck returned");
+
+        return deck;
+    }
+
+    public async void EndMatch(PokerMatch _pokerMatch, uint matchID)
+    {
+        _pokerMatch.playersInRound = new();
+        _pokerMatch.bettingPlayers = new();
+        _pokerMatch.matchDeck = new();
+        _pokerMatch.playersByUserID = new();
+        _pokerMatch.currentTurnUserID = 0;
+        _pokerMatch.currentBet = 0;
+        _pokerMatch.lastRaiseUserID = 0;
+        _pokerMatch.gameState = GAME_STATE.PRE_FLOP;
+        _pokerMatch.bigBlindReraised = false;
+        _pokerMatch.waitingForPlayersComplete = false;
+        getRequests.setupMatches.Remove(matchID);
+
+        for(int i = _pokerMatch.connectedPlayers.Count - 1; i >= 0; i--)
+        {
+            if((!_pokerMatch.connectedPlayers[i].joiningNextRound) || (_pokerMatch.connectedPlayers[i].userChips == 0))
+            {
+                _pokerMatch.connectedPlayers.RemoveAt(i);
+                await getRequests.RunTask(0, "leaveMatch", new uint[2]{(uint)_pokerMatch.connectedPlayers[i].userID, matchID});
+            }
+        }
+
+        if(_pokerMatch.connectedPlayers.Count <= 1)
+        {
+            //Abandon match
+            foreach(PokerPlayer _player in _pokerMatch.connectedPlayers)
+            {
+                serverBehaviour.SendDataToClient(_player.connectionID, "setLobbyStatus", 1, _stringData: new string[1]{ "toUserInfo" });
+                await getRequests.RunTask(0, "leaveMatch", new uint[2]{(uint)_player.userID, matchID});
+            }
+            _pokerMatch.connectedPlayers.Clear();
+
+            //Delete entry
+            await getRequests.RunTask(0, "deleteMatch", new uint[1]{matchID});
+        }
+        else
+        {
+            StartMatch(matchID);
+        }
+
+    }
+
+    public async void StartMatch(uint matchID)
+    {
+        await getRequests.RunTask(0, "waitForPlayers", new uint[1]{matchID});
     }
 }

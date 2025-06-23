@@ -11,6 +11,7 @@ public class ServerBehaviour : MonoBehaviour
 {
     NetworkDriver networkDriver;
     NativeList<NetworkConnection> connections;
+    [SerializeField] GetRequests getRequests;
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
@@ -58,6 +59,7 @@ public class ServerBehaviour : MonoBehaviour
                 else if(_cmd == NetworkEvent.Type.Disconnect)
                 {
                     Debug.Log("Client disconnected from server");
+                    getRequests.LogoutUser(i);
                     connections[i] = default;
                     break;
                 }
@@ -124,7 +126,7 @@ public class ServerBehaviour : MonoBehaviour
             {
                 data[i] = _stream.ReadUInt();
             }
-            GetRequests.instance.RunTask(index, behaviour, _intData: data);
+            getRequests.RunTask(index, behaviour, _intData: data);
         }
 
         //String
@@ -136,12 +138,12 @@ public class ServerBehaviour : MonoBehaviour
             {
                 data[i] = _stream.ReadFixedString32().ToString();
             }
-            GetRequests.instance.RunTask(index, behaviour, _stringData: data);
+            getRequests.RunTask(index, behaviour, _stringData: data);
         }
     }
     async void OnDestroy()
     {
-        await GetRequests.instance.GetRequest<LoginResponse>($"server_logout.php", false);
+        await getRequests.GetRequest<LoginResponse>($"server_logout.php", false);
 
         if(networkDriver.IsCreated)
         {

@@ -49,6 +49,7 @@ public class UserInfo
     public string Email;
     public string Country;
     public string DateOfBirth;
+    public int connectionID;
 }
 
 public class SingleInt

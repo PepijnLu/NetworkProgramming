@@ -7,6 +7,7 @@ public class ClientDataProcess : MonoBehaviour
 {
     Dictionary<string, Action<uint, uint[], string[]>> dataProcessing = new();
     public UserInfo userInfo;
+    [SerializeField] PokerClient pokerClient;
 
     void Awake()
     {
@@ -48,10 +49,10 @@ public class ClientDataProcess : MonoBehaviour
         {
             if (success == 1)
             {
-                Poker.instance.userChips = (int)intData[0];
-                UIManager.instance.GetTextElementFromDict("YourChips").text = $"Chips: {Poker.instance.userChips}";
+                pokerClient.userChips = (int)intData[0];
+                UIManager.instance.GetTextElementFromDict("YourChips").text = $"Chips: {pokerClient.userChips}";
 
-                if(Poker.instance.userChips < 20)
+                if(pokerClient.userChips < 20)
                 {
                     Debug.LogWarning("Not enough chips to play");
                     StartCoroutine(UIManager.instance.HandleNotEnoughChips());
@@ -60,8 +61,8 @@ public class ClientDataProcess : MonoBehaviour
 
                 UIManager.instance.GetUIElementFromDict("PreMatchSetup").SetActive(false);
                 UIManager.instance.GetUIElementFromDict("Matchmaking").SetActive(true);
-                Debug.Log($"Set player chips to {Poker.instance.userChips}");
-                UIManager.instance.GetTextElementFromDict("MMChips").text = $"Chips: {Poker.instance.userChips}";
+                Debug.Log($"Set player chips to {pokerClient.userChips}");
+                UIManager.instance.GetTextElementFromDict("MMChips").text = $"Chips: {pokerClient.userChips}";
                 UIManager.instance.GetUIElementFromDict("LeaveButton").SetActive(true);
                 ClientBehaviour.instance.SendInt(new uint[1]{(uint)ClientBehaviour.instance.GetUserInfo().userID}, "findMatch");
             }
@@ -74,7 +75,7 @@ public class ClientDataProcess : MonoBehaviour
             {
                 //Match found
                 //Setup match
-                Poker.instance.userMatchID = (int)intData[0];    
+                pokerClient.userMatchID = (int)intData[0];    
                 UIManager.instance.ToggleUIElement("UserInfo", false);
 
                 //UIManager.instance.GetUIElementFromDict("Lobby").SetActive(true);
@@ -89,7 +90,7 @@ public class ClientDataProcess : MonoBehaviour
                 //Show cards in hand
                 Debug.Log($"Got Cards: {(int)intData[0]}, {(int)intData[1]}");
                 UIManager.instance.ToggleUIElement("PokerScreen", true);
-                Poker.instance.GenerateHand((int)intData[0], (int)intData[1]);
+                pokerClient.GenerateHand((int)intData[0], (int)intData[1]);
             }
 
         };
@@ -100,7 +101,7 @@ public class ClientDataProcess : MonoBehaviour
             {
                 //Show cards in hand
                 UIManager.instance.ToggleUIElement("PokerScreen", true);
-                Poker.instance.GenerateSharedCard((int)intData[0], (int)intData[1]);
+                pokerClient.GenerateSharedCard((int)intData[0], (int)intData[1]);
             }
 
         };
@@ -119,7 +120,7 @@ public class ClientDataProcess : MonoBehaviour
                     orderInTurn = (int)intData[0],
                     userID = (int)intData[1]
                 };
-                Poker.instance.playersByUserID.Add(intData[1], newPlayer);
+                pokerClient.playersByUserID.Add(intData[1], newPlayer);
 
                 Debug.Log($"trying to get element from dict: P{(int)intData[0] + 1}Icon");
                 GameObject playerIcon = UIManager.instance.GetUIElementFromDict($"P{(int)intData[0] + 1}Icon");
@@ -129,8 +130,8 @@ public class ClientDataProcess : MonoBehaviour
                 if(intData[1] == userInfo.userID)
                 {
                     //Enable 'you' text
-                    ClientBehaviour.instance.SendInt(new uint[3]{(uint)userInfo.userID, (uint)Poker.instance.userMatchID, (uint)Poker.instance.userChips}, "setUserChips");
-                    Poker.instance.StartPokerRound();
+                    ClientBehaviour.instance.SendInt(new uint[3]{(uint)userInfo.userID, (uint)pokerClient.userMatchID, (uint)pokerClient.userChips}, "setUserChips");
+                    pokerClient.StartPokerRound();
                     playerIcon.transform.GetChild(1).gameObject.SetActive(true);
                     //Get your current chip amount from database
                 }
@@ -144,9 +145,9 @@ public class ClientDataProcess : MonoBehaviour
             {
                 //Set bet amount locally
                 int newBetAmount = (int)intData[1];
-                Poker.instance.playersByUserID[intData[0]].betAmount = newBetAmount;
+                pokerClient.playersByUserID[intData[0]].betAmount = newBetAmount;
                 bool newBetIsLower = false;
-                foreach(var kvp in Poker.instance.playersByUserID)
+                foreach(var kvp in pokerClient.playersByUserID)
                 {
                     if(kvp.Value.betAmount > newBetAmount)
                     {
@@ -158,10 +159,10 @@ public class ClientDataProcess : MonoBehaviour
                     Debug.LogWarning($"New bet {newBetAmount} is LOWER than existing bet");
                     return;
                 }
-                else Poker.instance.currentMatchBet = newBetAmount;
+                else pokerClient.currentMatchBet = newBetAmount;
 
                 //Do UI shit
-                int playerTurnOrder = Poker.instance.playersByUserID[intData[0]].orderInTurn + 1;
+                int playerTurnOrder = pokerClient.playersByUserID[intData[0]].orderInTurn + 1;
                 Debug.Log($"Trying to set bets for userID: {intData[0]}, order in turn {playerTurnOrder}, betAmount: {intData[1]}");
                 UIManager.instance.GetTextElementFromDict($"P{playerTurnOrder}Bet").text = $"Bet: {intData[1]}";
             }
@@ -171,7 +172,7 @@ public class ClientDataProcess : MonoBehaviour
         {
             if (success == 1)
             {
-                int playerTurnOrder = Poker.instance.playersByUserID[intData[0]].orderInTurn + 1;
+                int playerTurnOrder = pokerClient.playersByUserID[intData[0]].orderInTurn + 1;
 
                 Debug.Log($"Trying to set start player for userID: {intData[0]}, order in turn {playerTurnOrder}");
                 for(int i  = 1; i < 5; i++)
@@ -184,7 +185,7 @@ public class ClientDataProcess : MonoBehaviour
                 if(intData[0] == userInfo.userID)
                 {
                     UIManager.instance.GetTextElementFromDict("TurnText").text = $"Your turn!";
-                    Poker.instance.isYourTurn = true;
+                    pokerClient.isYourTurn = true;
                     UIManager.instance.GetUIElementFromDict("BetButtons").SetActive(true);
 
                 }
@@ -206,11 +207,16 @@ public class ClientDataProcess : MonoBehaviour
                 UIManager.instance.GetUIElementFromDict("Matchmaking").SetActive(true);
                 UIManager.instance.GetUIElementFromDict("Lobby").SetActive(false);
             }
+            else if(newStatus == "toUserInfo")
+            {
+                UIManager.instance.ToggleUIElement("PokerScreen", false);
+                UIManager.instance.ToggleUIElement("UserInfo", true);
+            }
             else
             {
                 UIManager.instance.GetUIElementFromDict("Matchmaking").SetActive(false);
                 UIManager.instance.GetUIElementFromDict("Lobby").SetActive(true);
-                UIManager.instance.GetTextElementFromDict("LChips").text = $"Chips: {Poker.instance.userChips}";
+                UIManager.instance.GetTextElementFromDict("LChips").text = $"Chips: {pokerClient.userChips}";
                 UIManager.instance.GetTextElementFromDict("LobbyStatus").text = newStatus;
             }
         };  
