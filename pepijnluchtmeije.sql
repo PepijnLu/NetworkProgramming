@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost
--- Gegenereerd op: 23 jun 2025 om 16:09
+-- Gegenereerd op: 24 jun 2025 om 14:25
 -- Serverversie: 10.11.9-MariaDB
 -- PHP-versie: 8.2.28
 
@@ -38,8 +38,9 @@ CREATE TABLE `player_info` (
 --
 
 INSERT INTO `player_info` (`UserID`, `TotalChips`, `FreeChipCooldown`) VALUES
-(1, 1320, '01:24:20'),
-(18, 1540, '01:24:24');
+(1, 1500, '01:24:20'),
+(18, 1480, '01:24:24'),
+(42, 1000, NULL);
 
 -- --------------------------------------------------------
 
@@ -73,25 +74,26 @@ CREATE TABLE `poker_players` (
 CREATE TABLE `poker_scores` (
   `ScoreID` int(11) NOT NULL,
   `UserID` int(11) DEFAULT NULL,
-  `Score` int(11) DEFAULT NULL,
-  `ScoredAt` timestamp NULL DEFAULT NULL
+  `Score` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci;
 
 --
 -- Gegevens worden geëxporteerd voor tabel `poker_scores`
 --
 
-INSERT INTO `poker_scores` (`ScoreID`, `UserID`, `Score`, `ScoredAt`) VALUES
-(1, 18, 1700, NULL),
-(2, 18, 2200, NULL),
-(3, 18, 2500, NULL),
-(4, 18, 900, NULL),
-(5, 18, 1200, NULL),
-(6, 1, 1500, NULL),
-(7, 1, 2000, NULL),
-(8, 1, 1600, NULL),
-(9, 1, 400, NULL),
-(10, 1, 2500, NULL);
+INSERT INTO `poker_scores` (`ScoreID`, `UserID`, `Score`) VALUES
+(1, 18, 1700),
+(2, 18, 2200),
+(3, 18, 2500),
+(4, 18, 900),
+(5, 18, 1200),
+(9, 1, 400),
+(11, 1, 300),
+(19, 1, 40),
+(24, 18, 100),
+(25, 1, 140),
+(26, 1, 100),
+(27, 42, 300);
 
 -- --------------------------------------------------------
 
@@ -142,9 +144,6 @@ CREATE TABLE `Servers` (
 -- Gegevens worden geëxporteerd voor tabel `Servers`
 --
 
-INSERT INTO `Servers` (`ID`, `Pass`) VALUES
-(1, '5f4dcc3b5aa765d61d8327deb882cf99');
-
 -- --------------------------------------------------------
 
 --
@@ -163,11 +162,6 @@ CREATE TABLE `Users` (
 --
 -- Gegevens worden geëxporteerd voor tabel `Users`
 --
-
-INSERT INTO `Users` (`ID`, `Username`, `Email`, `Pass`, `Country`, `DateOfBirth`) VALUES
-(1, 'ClubPengin', 'pepijn.luchtmeijer@gmail.com', '5f4dcc3b5aa765d61d8327deb882cf99', 'Netherlands', '2005-06-06 00:00:00'),
-(2, 'CuttingEyedJoe', 'cuttingeyedjoe@gmail.com', 'd8578edf8458ce06fbc5bb76a58c5ca4', 'England', '1993-12-17 01:00:00'),
-(18, 'ClubPengin2', 'pepijn.luchtmeijer2@gmail.com', '6eea9b7ef19179a06954edd0f6c05ceb', 'Netherlands', '2005-06-05 23:19:52');
 
 --
 -- Indexen voor geëxporteerde tabellen
@@ -200,7 +194,7 @@ ALTER TABLE `Users`
 -- AUTO_INCREMENT voor een tabel `poker_scores`
 --
 ALTER TABLE `poker_scores`
-  MODIFY `ScoreID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
+  MODIFY `ScoreID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=28;
 
 --
 -- AUTO_INCREMENT voor een tabel `Scores`
@@ -212,7 +206,7 @@ ALTER TABLE `Scores`
 -- AUTO_INCREMENT voor een tabel `Users`
 --
 ALTER TABLE `Users`
-  MODIFY `ID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=31;
+  MODIFY `ID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=43;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

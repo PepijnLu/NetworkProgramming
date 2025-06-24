@@ -35,6 +35,7 @@ public class ClientDataProcess : MonoBehaviour
                 //Disable buttons and show user info
                 UIManager.instance.ToggleUIElement("LoginScreen", false);
                 UIManager.instance.ToggleUIElement("UserInfo", true);
+                pokerClient.FetchTop5UserScores(int.Parse(stringData[0]));
                 UIManager.instance.DisplayUserInfo(stringData[1], stringData[2], stringData[3]);
             }
             else
@@ -51,10 +52,6 @@ public class ClientDataProcess : MonoBehaviour
             {
                 UIManager.instance.ToggleUIElement("RegisterScreen", false);
                 UIManager.instance.ToggleUIElement("LoginScreen", true);
-            }
-            else
-            {
-
             }
         };
 
@@ -76,7 +73,7 @@ public class ClientDataProcess : MonoBehaviour
                 UIManager.instance.GetUIElementFromDict("Matchmaking").SetActive(true);
                 Debug.Log($"Set player chips to {pokerClient.userChips}");
                 UIManager.instance.GetTextElementFromDict("MMChips").text = $"Chips: {pokerClient.userChips}";
-                UIManager.instance.GetUIElementFromDict("LeaveButton").SetActive(true);
+                //UIManager.instance.GetUIElementFromDict("LeaveButton").SetActive(true);
                 ClientBehaviour.instance.SendInt(new uint[1]{(uint)ClientBehaviour.instance.GetUserInfo().userID}, "findMatch");
             }
 
@@ -173,10 +170,10 @@ public class ClientDataProcess : MonoBehaviour
                     return;
                 }
                 else pokerClient.currentMatchBet = newBetAmount;
-
+                //Check if its you
                 if(intData[0] == userInfo.userID)
                 {
-                    pokerClient.userBet = (int)intData[1];
+                    pokerClient.HandleBet((int)intData[1]);
                 }
 
                 //Do UI shit
@@ -243,10 +240,15 @@ public class ClientDataProcess : MonoBehaviour
             UIManager.instance.GetUIElementFromDict("LeaveButton").SetActive(false);
         }; 
 
-        dataProcessing["setNewChips"] = (success, intData, stringData) =>
+        dataProcessing["addChips"] = (success, intData, stringData) =>
         {
-            pokerClient.userChips = (int)intData[0];
+            pokerClient.userChips += (int)intData[0];
         }; 
+
+        dataProcessing["fetchUserScores"] = (success, intData, stringData) =>
+        {
+            UIManager.instance.DisplayUserScores(intData);
+        };
 
     }
 }

@@ -12,6 +12,7 @@ public class GetRequests : MonoBehaviour
     [SerializeField] ServerBehaviour serverBehaviour;
     [SerializeField] PokerServer pokerServer;
     public List<uint> setupMatches = new();
+    List<int> cancelMatchUsers = new();
     private Dictionary<uint, PokerMatch> pokerMatches = new();
     Dictionary<string, Func<(int _connectionIndex, uint[], string[]), Task>> getRequests;    
 
@@ -43,12 +44,19 @@ public class GetRequests : MonoBehaviour
 
     public void LogoutUser(int connectionID)
     {
-        foreach(var kvp in connectedUsers)
+        List<int> keysToRemove = new();
+
+        foreach (var kvp in connectedUsers)
         {
-            if(kvp.Value.connectionID == connectionID)
+            if (kvp.Value.connectionID == connectionID)
             {
-                connectedUsers.Remove(kvp.Key);
+                keysToRemove.Add(kvp.Key);
             }
+        }
+
+        foreach (var key in keysToRemove)
+        {
+            connectedUsers.Remove(key);
         }
     }
 
@@ -85,11 +93,12 @@ public class GetRequests : MonoBehaviour
         return processedData;
     }
 
-    public async void SetPlayerChips(int userID, int newChipAmount, int connectionID)
+    public async void AddPlayerChips(int userID, int addedChips, int connectionID)
     {
-        serverBehaviour.SendDataToClient(connectionID, "setNewChips", 1, _intData: new uint[1]{(uint)newChipAmount});
-        SingleInt success = await GetRequest<SingleInt>($"poker.php?behaviour=2&UserID={userID}&NewAmount={newChipAmount}");
-        if(success.value == 0) Debug.LogWarning("error setting chips");
+        serverBehaviour.SendDataToClient(connectionID, "addChips", 1, _intData: new uint[1]{(uint)addedChips});
+
+        // SingleInt success = await GetRequest<SingleInt>($"poker.php?behaviour=2&UserID={userID}&NewAmount={newChipAmount}");
+        // if(success.value == 0) Debug.LogWarning("error setting chips");
     }
 
     void InstantiateDictionary()
@@ -152,9 +161,15 @@ public class GetRequests : MonoBehaviour
         getRequests["findMatch"] = async (args) =>
         {
             Debug.Log($"Now matchmaking!");
+            uint userID = args.Item2[0];
             SingleInt matchFound = new();
             while (matchFound.value == 0)
             {
+                if(cancelMatchUsers.Contains(args.Item1)) 
+                {
+                    cancelMatchUsers.Remove(args.Item1);
+                    return;
+                }
                 matchFound = await GetRequest<SingleInt>($"find_match.php?behaviour=2&UserID={args.Item2[0]}");
                 await Task.Delay(1000); // Wait 1 second
             }
@@ -169,7 +184,7 @@ public class GetRequests : MonoBehaviour
             //Add user to dictionary
             PokerPlayer newPlayer = new()
             {
-                userID = (int)args.Item2[0],
+                userID = (int)userID,
                 connectionID = args.Item1
             };
             //playersInMatches[(uint)matchFound.value].Add(newPlayer);  
@@ -195,6 +210,7 @@ public class GetRequests : MonoBehaviour
 
         getRequests["waitForPlayers"] = async (args) =>
         {
+            int connectionID = args.Item1;
             uint matchID = args.Item2[0];
             if (setupMatches.Contains(matchID) && args.Item2[1] == 0) return;
             if(pokerMatches[matchID].waitingForPlayersComplete) return;
@@ -213,7 +229,12 @@ public class GetRequests : MonoBehaviour
                 {
                     serverBehaviour.SendDataToClient(_player.connectionID, "setLobbyStatus", 1, _stringData: new string[1] {$"FindingPlayers"});
                 }
-                await RunTask(args.Item1, "waitForPlayers", new uint[2] { matchID, 1 });
+
+                if(cancelMatchUsers.Contains(connectionID))
+                {
+                    cancelMatchUsers.Remove(connectionID);
+                }
+                else await RunTask(args.Item1, "waitForPlayers", new uint[2] { matchID, 1 });
                 return;
             }
 
@@ -225,7 +246,11 @@ public class GetRequests : MonoBehaviour
                 case 1:
                     Debug.Log("Not all players connected");
                     await Task.Delay(500); // Wait .5 second
-                    await RunTask(args.Item1, "waitForPlayers", new uint[2] { matchID, 1 });
+                    if(cancelMatchUsers.Contains(connectionID))
+                    {
+                        cancelMatchUsers.Remove(connectionID);
+                    }
+                    else await RunTask(args.Item1, "waitForPlayers", new uint[2] { matchID, 1 });
                     break;
                 //Wait 10s to allow more people to join (set to 3 for testing)
                 case 2:
@@ -266,7 +291,11 @@ public class GetRequests : MonoBehaviour
                         if ((waitForPlayers.value != 2) || (waitForPlayers.value2 < 2)) 
                         {
                             Debug.Log("Restarting timer");
-                            await RunTask(args.Item1, "waitForPlayers", new uint[2] { matchID, 1 });
+                            if(cancelMatchUsers.Contains(connectionID))
+                            {
+                                cancelMatchUsers.Remove(connectionID);
+                            }
+                            else await RunTask(args.Item1, "waitForPlayers", new uint[2] { matchID, 1 });
                         }
                         tenSecondTimer++;
                     }
@@ -462,17 +491,23 @@ public class GetRequests : MonoBehaviour
 
             int userIDOfNextPlayer = pokerMatch.bettingPlayers[indexOfNextPlayer].userID;
 
+            // if(pokerMatch.gameState == GAME_STATE.SHOWDOWN)
+            // {
+            //     pokerServer.EndPokerRound(pokerMatch, matchID);
+            // }
+
             switch (args.Item2[2])
             {
                 //fold
                 case 1:
                     Debug.Log("Turn: Fold");
                     pokerMatch.bettingPlayers.Remove(pokerPlayer);
-                    foreach (PokerPlayer _player in pokerMatch.playersInRound)
-                    {
-                        //UserID, betAmount
-                        serverBehaviour.SendDataToClient(_player.connectionID, "setBet", 1, _intData: new uint[2] { (uint)pokerPlayer.userID, 0 });
-                    }
+                    Debug.Log($"{pokerPlayer} folded: {pokerMatch.bettingPlayers.Count} players remain");
+                    // foreach (PokerPlayer _player in pokerMatch.playersInRound)
+                    // {
+                    //     //UserID, betAmount
+                    //     serverBehaviour.SendDataToClient(_player.connectionID, "setBet", 1, _intData: new uint[2] { (uint)pokerPlayer.userID, 0 });
+                    // }
                     if (pokerMatch.bettingPlayers.Count <= 1)
                     {
                         pokerServer.EndPokerRound(pokerMatch, matchID);
@@ -532,11 +567,6 @@ public class GetRequests : MonoBehaviour
                         advanceGameState = true;
                     }
                 }
-                else if(pokerMatch.gameState == GAME_STATE.SHOWDOWN)
-                {
-                    pokerServer.EndPokerRound(pokerMatch, matchID);
-                    return;
-                }
                 else
                 {
                     if (pokerMatch.lastRaiseUserID == userIDOfNextPlayer)
@@ -591,6 +621,11 @@ public class GetRequests : MonoBehaviour
                             serverBehaviour.SendDataToClient(_player.connectionID, "getSharedCard", 1, _intData: new uint[2] { 5,  (uint)pokerMatches[matchID].matchDeck[4].cardID});
                         }
                         break;
+                    case GAME_STATE.SHOWDOWN:
+                        {
+                            pokerServer.EndPokerRound(pokerMatch, matchID);
+                            return;
+                        }
                 }
             }
 
@@ -655,6 +690,33 @@ public class GetRequests : MonoBehaviour
             
             await GetRequest<SingleInt>($"poker.php?behaviour=4&MatchID={matchID}");
 
+        };
+
+        getRequests["fetchUserScores"] = async (args) =>
+        {
+            uint userID = args.Item2[0];
+
+            SingleInt userScores = await GetRequest<SingleInt>($"poker.php?behaviour=5&UserID={userID}");
+
+            serverBehaviour.SendDataToClient(args.Item1, "fetchUserScores", 1, _intData: new uint[5] { (uint)userScores.value, (uint)userScores.value2, (uint)userScores.value3, (uint)userScores.value4 ,(uint)userScores.value5  });
+        };
+
+        getRequests["cancelFindMatch"] = async (args) =>
+        {
+            int connectionID = args.Item1;
+
+            cancelMatchUsers.Add(connectionID);
+        };
+
+        getRequests["uploadScore"] = async (args) =>
+        {
+            int userID = (int)args.Item2[0];
+            int score = (int)args.Item2[1];
+            uint isNegative = args.Item2[2];
+
+            if(isNegative == 1) score *= -1;
+
+            await GetRequest<SingleInt>($"poker.php?behaviour=6&UserID={userID}&Score={score}");
         };
 
     }

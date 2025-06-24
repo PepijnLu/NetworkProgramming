@@ -57,6 +57,8 @@ public class SingleInt
     public int value = 0;
     public int value2 = 0;
     public int value3 = 0;
+    public int value4 = 0;
+    public int value5 = 0;
 }
 
 public class SingleString

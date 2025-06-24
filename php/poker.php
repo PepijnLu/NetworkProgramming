@@ -32,6 +32,11 @@ if ($behaviour == 5)
     FetchTop5UserScores();
 }
 
+if ($behaviour == 6) 
+{
+    UploadUserScore();
+}
+
 function FetchCurrentChips()
 {
     global $mysqli;
@@ -83,13 +88,36 @@ function FetchTop5UserScores()
     global $mysqli;
 
     $userID = $_GET["UserID"];
-    $top5query = "SELECT Score FROM Scores WHERE UserID = '$userID' ORDER BY Score DESC LIMIT 5";
+    $top5query = "SELECT Score FROM poker_scores WHERE UserID = '$userID' ORDER BY Score DESC LIMIT 6";
     $result = $mysqli->query($top5query);
 
     $scores = [];
-    while ($row = $result->fetch_assoc()) {
-        $scores[] = $row['Score'];
+    $i = 1;
+    while ($row = $result->fetch_assoc()) 
+    {
+        if ($i == 1)
+        {
+            $scores["value"] = $row['Score'];
+        }
+        else 
+        {
+            $scores["value$i"] = $row['Score'];
+        }
+        $i++;
     }
+
+    echo json_encode($scores);
+}
+
+function UploadUserScore()
+{
+    global $mysqli;
+
+    $userID = $_GET["UserID"];
+    $score = $_GET["Score"];
+
+    $mysqli->query("INSERT INTO poker_scores(UserID, Score) VALUES ('$userID', '$score')");
+
 }
 
 ?>

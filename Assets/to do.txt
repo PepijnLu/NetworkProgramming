@@ -1,17 +1,7 @@
--chip text isn't being set in matchmaking screen (hopefully fixed)
+-call once too much on showdown screen / first blind
+-implement folding
+-properly disconnect clients
+-either score 0 or cant restart match
+-fix back button on register screen
 
--game needs to be able to end and start again
--option to leave game / not join the next one
--both players can call once too much on showdown round (hopefully fixed)
--ui for wrong password etc
--user chips are set instead of modified
-
-
-
-worries for later:
--cancel screen pops up too soon, pops up again when you press it quickly
--if big blind calls (checks) on r1, small blind gets to check again (does work if small blind raises)
--onapplicationquit = fold, leave, cleanup
--registering
--joining mid game shenanigans
 

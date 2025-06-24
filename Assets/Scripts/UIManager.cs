@@ -74,4 +74,17 @@ public class UIManager : MonoBehaviour
         _tmpro.text = "";
 
     }
+
+    public void DisplayUserScores(uint[] intData)
+    {
+        for(int i = 0; i < intData.Length; i++)
+        {
+            Debug.Log($"Score: {intData[i]}");
+            if(intData[i] != 0)
+            {
+                GetTextElementFromDict($"INScore{i + 1}").text = $"Score: {intData[i]}";
+                GetTextElementFromDict($"GOScore{i + 1}").text = $"Score: {intData[i]}";
+            }
+        } 
+    }
 }

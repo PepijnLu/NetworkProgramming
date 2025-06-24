@@ -38,10 +38,16 @@ public class PokerMatch
 }
 public class Poker : MonoBehaviour
 {
-    [SerializeField] List<PokerCard> pokerCards;
+    List<PokerCard> pokerCards = new();
+    [SerializeField] List<GameObject> pokerCardsObjects;
     Dictionary<int, PokerCard> pokerCardsDict = new();
     void Awake()
     {
+        foreach (GameObject _obj in pokerCardsObjects)
+        {
+            pokerCards.Add(_obj.GetComponent<PokerCard>());
+        }
+
         foreach (PokerCard _pokerCard in pokerCards)
         {
             pokerCardsDict.Add(_pokerCard.cardID, _pokerCard);

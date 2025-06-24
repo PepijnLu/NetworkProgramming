@@ -75,13 +75,20 @@ public class PokerClient : MonoBehaviour
         int userID = clientDataProcess.userInfo.userID;
         int matchID = userMatchID;
 
-        userChips -= betAmount;
+        //userChips -= betAmount;
 
         UIManager.instance.GetTextElementFromDict("YourChips").text = $"Chips: {userChips}";
         EndPlayerTurn();
 
         ClientBehaviour.instance.SendInt(new uint[3]{(uint)userID, (uint)matchID, (uint)userChips}, "setUserChips");
         ClientBehaviour.instance.SendInt(new uint[4]{(uint)userID, (uint)matchID, (uint)_action, (uint)newMatchBet}, "playTurn");
+    }
+
+    public void HandleBet(int _bet)
+    {  
+        int oldBet = userBet;
+        userBet = _bet;
+        userChips -= (userBet - oldBet);
     }
 
     public void StartPokerRound()
@@ -123,17 +130,29 @@ public class PokerClient : MonoBehaviour
     }
 
     //Runs on client
-    public void ResetMatchClient()
+    public void ResetMatchClient(bool _cancelling = false)
     {
         //Destroy river
         if(instantiatedRiver != null) Destroy(instantiatedRiver);
         //Destroy hand cards
-        if(pokerHandC1Transform.GetChild(0) != null) Destroy(pokerHandC1Transform.GetChild(0).gameObject);
-        if(pokerHandC2Transform.GetChild(0) != null) Destroy(pokerHandC2Transform.GetChild(0).gameObject);
+        if(pokerHandC1Transform.childCount  > 0) Destroy(pokerHandC1Transform.GetChild(0).gameObject);
+        if(pokerHandC1Transform.childCount  > 0) Destroy(pokerHandC2Transform.GetChild(0).gameObject);
 
-        UIManager.instance.ToggleUIElement("PokerScreen", false);
-        UIManager.instance.ToggleUIElement("GameOver", true);
-        UIManager.instance.GetTextElementFromDict("GameScore").text = $"Score: {userChips - userStartingChips}";
-        
+        if(!_cancelling)
+        {
+            UIManager.instance.ToggleUIElement("PokerScreen", false);
+            UIManager.instance.ToggleUIElement("GameOver", true);
+            FetchTop5UserScores(clientDataProcess.userInfo.userID);
+            int score = userChips - userStartingChips;
+            UIManager.instance.GetTextElementFromDict("GameScore").text = $"Score: {score}";
+            uint isNegative = 0;
+            if(score < 0) isNegative = 1;
+            ClientBehaviour.instance.SendInt(new uint[3]{(uint)clientDataProcess.userInfo.userID, (uint)score, isNegative}, "uploadScore");
+        }
+    }
+
+    public void FetchTop5UserScores(int userID)
+    {
+        ClientBehaviour.instance.SendInt(new uint[1]{(uint)userID}, "fetchUserScores");
     }
 }

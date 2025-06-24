@@ -27,12 +27,12 @@ public class PokerServer : MonoBehaviour
             Debug.LogError("Cant be 0 players remaining");
             return;
         }
-        else if (remainingPlayers.Count == 1)
-        {
-            Debug.Log("Onlyt 1 player remaining");
-            roundWinners.Add(remainingPlayers[0]);
-        }
-        else if(remainingPlayers.Count > 1)
+        // else if (remainingPlayers.Count == 1)
+        // {
+        //     Debug.Log("Onlyt 1 player remaining");
+        //     roundWinners.Add(remainingPlayers[0]);
+        // }
+        else
         {
             //SHOWDOWN
             Debug.Log("More than one player remaining");
@@ -78,8 +78,6 @@ public class PokerServer : MonoBehaviour
             }
 
             Debug.Log("Hand check complete");
-
-            //Distribute chips under winners
             int pool = 0;
             foreach(PokerPlayer _pokerPlayer in pokerMatch.playersInRound) 
             {
@@ -90,26 +88,17 @@ public class PokerServer : MonoBehaviour
             foreach(PokerPlayer _pokerPlayer in roundWinners) 
             {
                 Debug.Log($"Winner: {_pokerPlayer.userID} got {shareOfBet}");
-                _pokerPlayer.userChips += shareOfBet;
+                getRequests.AddPlayerChips(_pokerPlayer.userID, shareOfBet, _pokerPlayer.connectionID);
+                //_pokerPlayer.userChips += shareOfBet;
             }
-
-            Debug.Log("Chips distrubuted");
-
-            //Update remaining player chips in database
-            foreach(PokerPlayer _pokerPlayer in pokerMatch.bettingPlayers)
-            {
-                getRequests.SetPlayerChips(_pokerPlayer.userID, _pokerPlayer.userChips, _pokerPlayer.connectionID);
-            }
-
-            Debug.Log("Updated chips in databse");
-
-            //Reset necessary values
-            EndMatch(pokerMatch, matchID);
-
-            //Start new round
         }
 
+        //Reset necessary values
+        EndMatch(pokerMatch, matchID);
+
         Debug.Log("Round ended");
+
+        
     }
 
     public List<PokerCard> GetShuffledCards(int _playerCount)

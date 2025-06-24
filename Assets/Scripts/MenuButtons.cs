@@ -35,14 +35,17 @@ public class MenuButtons : MonoBehaviour
         string emailInput = _inputs.GetChild(2).GetComponent<TMP_InputField>().text;
         string countryInput = _inputs.GetChild(3).GetComponent<CountryDropdown>().GetSelectedCountry();
 
+        string regError = "";
+
         //Do more checks than this
-        if(usernameInput.Length < 4) { Debug.Log("Username too short"); return; }
-        if(passwordInput.Length < 7) { Debug.Log("Password too short"); return; }
-        if(!emailInput.Contains("@") || !emailInput.Contains(".")) { Debug.Log("Invalid Email"); return; }
-        if(countryInput == "") { Debug.Log("No country selected"); return; }
+        if(usernameInput.Length < 4) regError = "Username too short";
+        if(passwordInput.Length < 7) regError = "Password too short"; 
+        if(!emailInput.Contains("@") || !emailInput.Contains(".")) regError =  "Invalid Email"; 
+        if(countryInput == "") regError = "No country selected";
 
         //username, password, email, country
-        ClientBehaviour.instance.SendString(new string[4]{usernameInput, MD5Helper.EncryptToMD5(passwordInput), emailInput, countryInput}, "registerUser");
+        if(regError == "") ClientBehaviour.instance.SendString(new string[4]{usernameInput, passwordInput, emailInput, countryInput}, "registerUser");
+        else StartCoroutine(UIManager.instance.ShowTextForSeconds("RegError", regError, 2));
     }
 
     public void FindMatch()
@@ -66,12 +69,19 @@ public class MenuButtons : MonoBehaviour
         pokerClient.ChangeRaiseAmount(_increment);
     }
 
-    public void LeaveMatch()
+    public void LeaveMatch(bool _cancel)
     {
-        ClientBehaviour.instance.SendInt(new uint[2]{(uint)ClientBehaviour.instance.GetUserInfo().userID, (uint)pokerClient.userMatchID}, "leaveMatch");
-        pokerClient.ResetMatchClient();
-        UIManager.instance.ToggleUIElement("Lobby", false);
-        UIManager.instance.ToggleUIElement("Matchmaking", false);
+        if(_cancel)
+        {
+            ClientBehaviour.instance.SendInt(new uint[1]{(uint)ClientBehaviour.instance.GetUserInfo().userID}, "cancelFindMatch");
+            UIManager.instance.ToggleUIElement("Matchmaking", false);
+        }
+        else
+        {
+            ClientBehaviour.instance.SendInt(new uint[2]{(uint)ClientBehaviour.instance.GetUserInfo().userID, (uint)pokerClient.userMatchID}, "leaveMatch");
+            pokerClient.ResetMatchClient(true);
+            UIManager.instance.ToggleUIElement("Lobby", false);
+        }
         UIManager.instance.ToggleUIElement("UserInfo", true);
     }
 
@@ -79,5 +89,17 @@ public class MenuButtons : MonoBehaviour
     {
         pokerClient.joiningNextRound = !pokerClient.joiningNextRound;
         UIManager.instance.ToggleUIElement("JoinNextCheck", pokerClient.joiningNextRound);
+    }
+
+    public void BackToMenu()
+    {
+        UIManager.instance.ToggleUIElement("GameOver", false);
+        UIManager.instance.ToggleUIElement("UserInfo", true);
+    }
+
+    public void BackToLoginScreen()
+    {
+        UIManager.instance.ToggleUIElement("RegisterScreen", false);
+        UIManager.instance.ToggleUIElement("LoginScreen", true);
     }
 }

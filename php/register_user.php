@@ -55,10 +55,18 @@ function ValidateCredentials($username, $email)
 function InsertUser($username, $email, $pass, $country)
 {
     global $mysqli;
-    $insertUser = "INSERT INTO Users(Username, Email, Pass, Country) VALUES ('$username','$email', MD5('$pass'), '$country')"; 
-
+    $insertUser = "INSERT INTO Users(Username, Email, Pass, Country) VALUES ('$username','$email', '$pass', '$country')"; 
+    
     if (!($result = $mysqli->query($insertUser)))
     showerror($mysqli->errno,$mysqli->error);
+
+    else 
+    {
+        $newUser = GetUserByUsername($username);
+        $newID = $newUser['ID'];
+        $insertUserIntoPlayerInfo = "INSERT INTO player_info(UserID, TotalChips) VALUES ('$newID', 1000)"; 
+        $mysqli->query($insertUserIntoPlayerInfo);
+    }
 }
 
 function GetUserByUsername($_username)
