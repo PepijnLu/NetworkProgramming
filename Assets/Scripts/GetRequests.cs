@@ -22,6 +22,7 @@ public class GetRequests : MonoBehaviour
     [SerializeField] string baseUrl;
     void Awake()
     {
+        //Instantiate dictionary with functions
         InstantiateDictionary();
     }
 
@@ -32,9 +33,6 @@ public class GetRequests : MonoBehaviour
     }
     async void Start()
     {
-        //Index page
-        //GetRequest(baseUrl);
-
         //Start server session
         LoginResponse response = await GetRequest<LoginResponse>($"server_login.php?Server_ID={serverID}&Server_pass={MD5Helper.EncryptToMD5(password)}&delOld=true");
         if (!response.success) Debug.LogError($"Server Login failed: {response.message}");
@@ -97,8 +95,6 @@ public class GetRequests : MonoBehaviour
     {
         serverBehaviour.SendDataToClient(connectionID, "addChips", 1, _intData: new uint[1]{(uint)addedChips});
 
-        // SingleInt success = await GetRequest<SingleInt>($"poker.php?behaviour=2&UserID={userID}&NewAmount={newChipAmount}");
-        // if(success.value == 0) Debug.LogWarning("error setting chips");
     }
 
     void InstantiateDictionary()
@@ -176,9 +172,6 @@ public class GetRequests : MonoBehaviour
 
             Debug.Log($"Match Found! Match ID: {matchFound.value}");
 
-            //Create dictionary entry if it doesnt exist yet
-            //if(!playersInMatches.ContainsKey((uint)matchFound.value)) playersInMatches.Add((uint)matchFound.value, new List<PokerPlayer>());
-
             if (!pokerMatches.ContainsKey((uint)matchFound.value)) pokerMatches.Add((uint)matchFound.value, new PokerMatch());
 
             //Add user to dictionary
@@ -187,7 +180,6 @@ public class GetRequests : MonoBehaviour
                 userID = (int)userID,
                 connectionID = args.Item1
             };
-            //playersInMatches[(uint)matchFound.value].Add(newPlayer);  
             pokerMatches[(uint)matchFound.value].connectedPlayers.Add(newPlayer);
 
 
@@ -255,11 +247,6 @@ public class GetRequests : MonoBehaviour
                 //Wait 10s to allow more people to join (set to 3 for testing)
                 case 2:
                     Debug.Log("Allowing more people to join");
-                    //Set lobby usernames
-                    // foreach(PokerPlayer _player in pokerMatches[matchID].playersInMatch)
-                    // {
-                    //     serverBehaviour.SendDataToClient(_player.connectionID, "setLobbyStatus", 1, _stringData: new string[2] { $"Starting in: {(10 - tenSecondTimer)}" });
-                    // }
 
                     int tenSecondTimer = 0;
                     while (tenSecondTimer < 10)
@@ -307,11 +294,6 @@ public class GetRequests : MonoBehaviour
                 //Start in 5 seconds
                 case 3:
                     Debug.Log("Starting in 5");
-                    //Set lobby usernames
-                    // foreach(PokerPlayer _player in pokerMatches[matchID].playersInMatch)
-                    // {
-                    //     serverBehaviour.SendDataToClient(_player.connectionID, "setLobbyStatus", 1, _stringData: new string[2] { $"Starting in: {(10 - tenSecondTimer)}" });
-                    // }
                     int fiveSecondTimer = 0;
                     while (fiveSecondTimer < 5)
                     {
@@ -414,11 +396,6 @@ public class GetRequests : MonoBehaviour
             pokerMatches[matchID].playersInRound = connectedPlayers;
             pokerMatches[matchID].bettingPlayers = connectedPlayers;
 
-            // foreach (PokerPlayer _player in connectedPlayers)
-            // {
-            //     SingleInt setWaiting = await GetRequest<SingleInt>($"poker.php?behaviour=4&UserID={_player.userID}&MatchID={matchID}&Waiting={0}");
-            // }
-
             for (int i = 0; i < connectedPlayers.Count; i++)
             {
                 foreach (PokerPlayer _player in connectedPlayers)
@@ -490,11 +467,6 @@ public class GetRequests : MonoBehaviour
             else indexOfNextPlayer = indexOfCurrentPlayer + 1;
 
             int userIDOfNextPlayer = pokerMatch.bettingPlayers[indexOfNextPlayer].userID;
-
-            // if(pokerMatch.gameState == GAME_STATE.SHOWDOWN)
-            // {
-            //     pokerServer.EndPokerRound(pokerMatch, matchID);
-            // }
 
             switch (args.Item2[2])
             {

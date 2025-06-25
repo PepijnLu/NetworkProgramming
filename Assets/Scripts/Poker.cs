@@ -38,14 +38,18 @@ public class PokerMatch
 }
 public class Poker : MonoBehaviour
 {
-    List<PokerCard> pokerCards = new();
-    [SerializeField] List<GameObject> pokerCardsObjects;
+    [SerializeField] List<PokerCard> pokerCards = new();
     Dictionary<int, PokerCard> pokerCardsDict = new();
     void Awake()
     {
-        foreach (GameObject _obj in pokerCardsObjects)
+        GameObject[] loadedPrefabs = Resources.LoadAll<GameObject>("Deck06");
+
+        foreach (GameObject _obj in loadedPrefabs)
         {
-            pokerCards.Add(_obj.GetComponent<PokerCard>());
+            if(_obj.TryGetComponent(out PokerCard card))
+            {
+                pokerCards.Add(card);
+            }
         }
 
         foreach (PokerCard _pokerCard in pokerCards)

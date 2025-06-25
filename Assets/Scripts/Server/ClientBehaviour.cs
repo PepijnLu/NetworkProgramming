@@ -53,11 +53,7 @@ public class ClientBehaviour : MonoBehaviour
             }
             else if(_cmd == NetworkEvent.Type.Data)
             {
-                // uint _value = _stream.ReadUInt();
-                // Debug.Log($"Got value {_value} back from server");
                 ReadDataFromServer(_stream);
-                //connection.Disconnect(networkDriver);
-                //connection = default;
             }
             else if(_cmd == NetworkEvent.Type.Disconnect)
             {
@@ -117,12 +113,6 @@ public class ClientBehaviour : MonoBehaviour
             }
 
             clientDataProcess.ProcessData(behaviour, success, intData: data);
-
-            // foreach(uint _uint in data)
-            // {
-            //     Debug.Log($"Data: {_uint}");
-            // };  
-            //GetRequests.instance.RunTask(index, behaviour, _intData: data);
         }
 
         //String
@@ -136,12 +126,6 @@ public class ClientBehaviour : MonoBehaviour
             }
 
             clientDataProcess.ProcessData(behaviour, success, stringData: data);
-
-            // foreach(string _str in data)
-            // {
-            //     Debug.Log($"Data: {_str}");
-            // };  
-            //GetRequests.instance.RunTask(index, behaviour, _stringData: data);
         }
     }
 

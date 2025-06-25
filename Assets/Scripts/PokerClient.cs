@@ -27,8 +27,12 @@ public class PokerClient : MonoBehaviour
     }
     public void GenerateHand(int card1ID, int card2ID)
     {
-        Instantiate(pokerCardsDict[card1ID], pokerHandC1Transform);
-        Instantiate(pokerCardsDict[card2ID], pokerHandC2Transform);
+        Debug.Log("Generating hand");
+        Debug.Log($"Prefabs: {pokerCardsDict[card1ID].name} , {pokerCardsDict[card2ID].name}");
+        Debug.Log($"Transforms: {pokerHandC1Transform.name} , {pokerHandC2Transform.name}");
+        PokerCard card1 = Instantiate(pokerCardsDict[card1ID], pokerHandC1Transform);
+        PokerCard card2 = Instantiate(pokerCardsDict[card2ID], pokerHandC2Transform);
+        Debug.Log($"Card1 generated: {card1.transform.GetChild(0).gameObject.GetComponent<SpriteRenderer>().sprite.texture.name} , {card1.transform.GetChild(1).gameObject.GetComponent<SpriteRenderer>().sprite.texture.name}");
     }
 
     public void GenerateSharedCard(int _cardNumber, int _cardID)
@@ -128,8 +132,6 @@ public class PokerClient : MonoBehaviour
 
         UIManager.instance.GetTextElementFromDict("RaiseBetAmount").text = $"{raiseBetAmount}";
     }
-
-    //Runs on client
     public void ResetMatchClient(bool _cancelling = false)
     {
         //Destroy river

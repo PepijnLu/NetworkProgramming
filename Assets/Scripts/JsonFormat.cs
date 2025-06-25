@@ -39,7 +39,7 @@ public class LoginResponse
 {
     public bool success;
     public string message;
-    public string sessionId; // Optional: will be null if not successful
+    public string sessionId;
 }
 
 public class UserInfo

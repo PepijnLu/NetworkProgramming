@@ -27,11 +27,6 @@ public class PokerServer : MonoBehaviour
             Debug.LogError("Cant be 0 players remaining");
             return;
         }
-        // else if (remainingPlayers.Count == 1)
-        // {
-        //     Debug.Log("Onlyt 1 player remaining");
-        //     roundWinners.Add(remainingPlayers[0]);
-        // }
         else
         {
             //SHOWDOWN
@@ -143,33 +138,16 @@ public class PokerServer : MonoBehaviour
         _pokerMatch.waitingForPlayersComplete = false;
         getRequests.setupMatches.Remove(matchID);
 
-        // for(int i = _pokerMatch.connectedPlayers.Count - 1; i >= 0; i--)
-        // {
-        //     if((!_pokerMatch.connectedPlayers[i].joiningNextRound) || (_pokerMatch.connectedPlayers[i].userChips == 0))
-        //     {
-        //         _pokerMatch.connectedPlayers.RemoveAt(i);
-        //         await getRequests.RunTask(0, "leaveMatch", new uint[2]{(uint)_pokerMatch.connectedPlayers[i].userID, matchID});
-        //     }
-        // }
+        //Abandon match
+        foreach(PokerPlayer _player in _pokerMatch.connectedPlayers)
+        {
+            serverBehaviour.SendDataToClient(_player.connectionID, "setLobbyStatus", 1, _stringData: new string[1]{ "toUserInfo" });
+            await getRequests.RunTask(0, "leaveMatch", new uint[2]{(uint)_player.userID, matchID});
+        }
+        _pokerMatch.connectedPlayers.Clear();
 
-        //if(_pokerMatch.connectedPlayers.Count <= 1)
-        //{
-            //Abandon match
-            foreach(PokerPlayer _player in _pokerMatch.connectedPlayers)
-            {
-                serverBehaviour.SendDataToClient(_player.connectionID, "setLobbyStatus", 1, _stringData: new string[1]{ "toUserInfo" });
-                await getRequests.RunTask(0, "leaveMatch", new uint[2]{(uint)_player.userID, matchID});
-            }
-            _pokerMatch.connectedPlayers.Clear();
-
-            //Delete entry
-            await getRequests.RunTask(0, "deleteMatch", new uint[1]{matchID});
-        //}
-        //else
-        //{
-            //StartMatch(matchID);
-        //}
-
+        //Delete entry
+        await getRequests.RunTask(0, "deleteMatch", new uint[1]{matchID});
     }
 
     public async void StartMatch(uint matchID)
